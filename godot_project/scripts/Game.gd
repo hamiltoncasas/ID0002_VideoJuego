@@ -30,6 +30,8 @@ var hero_data = {}
 
 func _ready():
 	hero_data = Globals.get_hero(Globals.selected_hero_id)
+	cam = Vector2(640, 360)
+	cam_target = Vector2(640, 360)
 	RenderingServer.set_default_clear_color(Color(0.08, 0.18, 0.06))
 	_gen_terrain()
 	_gen_resources()
@@ -380,20 +382,23 @@ func _process(delta):
 	
 	# ── Camera ──
 	var mv = Vector2()
-	if Input.is_key_pressed(KEY_W): mv.y -= 1
-	if Input.is_key_pressed(KEY_S): mv.y += 1
-	if Input.is_key_pressed(KEY_A): mv.x -= 1
-	if Input.is_key_pressed(KEY_D): mv.x += 1
-	if Input.is_key_pressed(KEY_UP): mv.y -= 1
-	if Input.is_key_pressed(KEY_DOWN): mv.y += 1
-	if Input.is_key_pressed(KEY_LEFT): mv.x -= 1
-	if Input.is_key_pressed(KEY_RIGHT): mv.x += 1
+	var kb = false  # track if keyboard is used
+	if Input.is_key_pressed(KEY_W): mv.y -= 1; kb = true
+	if Input.is_key_pressed(KEY_S): mv.y += 1; kb = true
+	if Input.is_key_pressed(KEY_A): mv.x -= 1; kb = true
+	if Input.is_key_pressed(KEY_D): mv.x += 1; kb = true
+	if Input.is_key_pressed(KEY_UP): mv.y -= 1; kb = true
+	if Input.is_key_pressed(KEY_DOWN): mv.y += 1; kb = true
+	if Input.is_key_pressed(KEY_LEFT): mv.x -= 1; kb = true
+	if Input.is_key_pressed(KEY_RIGHT): mv.x += 1; kb = true
 	
-	var ms = get_global_mouse_position()
-	if ms.x < 15: mv.x -= 1
-	if ms.x > 1265: mv.x += 1
-	if ms.y < 42: mv.y -= 1
-	if ms.y > 710: mv.y += 1
+	# Edge scroll only when not using keyboard
+	if not kb:
+		var ms = get_global_mouse_position()
+		if ms.x < 15: mv.x -= 1
+		if ms.x > 1265: mv.x += 1
+		if ms.y < 42: mv.y -= 1
+		if ms.y > 710: mv.y += 1
 	
 	if mv.length() > 0:
 		mv = mv.normalized() * cam_speed * delta * (1.0 / zoom_level)
