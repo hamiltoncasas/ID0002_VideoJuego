@@ -1,0 +1,57 @@
+# Local AI runtime state
+.atl/
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.sln.docstates
+*.userprefs
+
+# Build
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# NuGet
+*.nupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nupkg
+**/packages/*
+
+# Visual Studio
+.vs/
+*.sln.ide/
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# VS Code
+.vscode/
+
+# Test results
+[Tt]est[Rr]esults*/
+[Bb]uild[Ss]tore*/
+
+# dotnet
+*.received.*
+*.verified.*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Game save files
+savegame.json
