@@ -240,6 +240,8 @@ theme_override_font_sizes/font_size = 8
 text = ""
 
 # Command tips
+[node name="Effects" type="Node" parent="."]
+
 [node name="Tips" type="Label" parent="."]
 offset_left = 10
 offset_top = 690
