@@ -354,12 +354,20 @@ func _build_minimap():
 	var bg = ColorRect.new()
 	bg.name = "MMBg"; bg.size = Vector2(164, 164)
 	bg.position = Vector2(1280 - 174, 720 - 174); bg.color = Color(0.03, 0.02, 0.06, 0.95)
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE; ui.add_child(bg)
+	bg.mouse_filter = Control.MOUSE_FILTER_PASS; ui.add_child(bg)
 	
 	var m = ColorRect.new()
 	m.name = "MMap"; m.size = Vector2(160, 160)
 	m.position = Vector2(1280 - 172, 720 - 172); m.color = Color(0.08, 0.18, 0.05)
-	m.mouse_filter = Control.MOUSE_FILTER_IGNORE; ui.add_child(m)
+	m.mouse_filter = Control.MOUSE_FILTER_PASS; ui.add_child(m)
+	
+	# Click handler for minimap navigation
+	m.gui_input.connect(func(event):
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			var sx = event.position.x / 160.0 * WORLD_W
+			var sy = event.position.y / 160.0 * WORLD_H
+			cam_target = Vector2(clamp(sx, 320, WORLD_W - 320), clamp(sy, 180, WORLD_H - 180))
+	)
 	
 	var cc = ColorRect.new()
 	cc.name = "MMCam"; cc.size = Vector2(50, 30)
@@ -670,12 +678,31 @@ func _input(event):
 		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			zoom_target = clamp(zoom_target - 0.1, 0.3, 2.0)
 	
-	# Right-click move
+	# Right-click context actions
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT and selected.size() > 0:
 		var wp = event.position + cam - Vector2(640, 360)
 		if wp.x >= 0 and wp.x < WORLD_W and wp.y >= 0 and wp.y < WORLD_H:
+			# Check if clicked on a resource (for villagers)
+			var clicked_res = null
+			var clicked_enemy = null
+			for r in res_nodes:
+				if r["amount"] > 0 and wp.distance_to(r["pos"]) < 30:
+					clicked_res = r; break
+			for en in enemies:
+				if is_instance_valid(en.get("node")) and wp.distance_to(en["pos"]) < 30:
+					clicked_enemy = en; break
+			
 			for e in selected:
-				e["target_pos"] = wp; e["moving"] = true; e["task"] = "idle"; e["gather_target"] = null
+				# Villager on resource → gather
+				if e["type"] == "villager" and clicked_res:
+					e["task"] = "gathering"; e["gather_target"] = clicked_res
+					e["target_pos"] = clicked_res["pos"]; e["moving"] = true
+				# Military on enemy → attack
+				elif e["type"] in ["warrior", "archer", "cavalry", "hero"] and clicked_enemy:
+					e["task"] = "fighting"; e["target_pos"] = clicked_enemy["pos"]; e["moving"] = true
+				# Default: move
+				else:
+					e["target_pos"] = wp; e["moving"] = true; e["task"] = "idle"; e["gather_target"] = null
 
 func _confirm_building(type, pos):
 	var costs = {"wall": {"stone": 50}, "barracks": {"gold": 100, "wood": 100}, "archery": {"gold": 120, "wood": 80, "stone": 50}, "stable": {"gold": 150, "wood": 60, "stone": 30}, "siege": {"gold": 200, "wood": 100, "stone": 100}, "tower_arrow": {"gold": 80, "stone": 100, "wood": 40}}

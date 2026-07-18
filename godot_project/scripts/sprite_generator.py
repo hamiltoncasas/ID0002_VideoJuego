@@ -137,6 +137,87 @@ def save_character_sheet():
         img.save(path)
         print(f"  ✅ enemy_{name}.png")
 
+def create_building_sprite(name, base_color, roof_color, w=96, h=96):
+    """Generate building sprites like castle, barracks, etc."""
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    cx, cy = w // 2, h // 2
+    
+    # Shadow
+    draw.ellipse([cx - w//3, cy + h//4, cx + w//3, cy + h//3], fill=(0, 0, 0, 40))
+    
+    # Walls
+    wall_color = base_color
+    draw.rectangle([cx - w//3, cy - h//6, cx + w//3, cy + h//4], fill=wall_color)
+    
+    # Roof
+    roof = roof_color
+    draw.polygon([(cx - w//3 - 5, cy - h//6), (cx, cy - h//3), (cx + w//3 + 5, cy - h//6)], fill=roof)
+    
+    # Door
+    draw.rectangle([cx - 8, cy - 5, cx + 8, cy + h//4], fill=(80, 50, 30, 255))
+    
+    # Windows
+    for wx in [-w//6, w//6]:
+        draw.rectangle([cx + wx - 5, cy - 15, cx + wx + 5, cy - 5], fill=(200, 180, 100, 200))
+    
+    return img
+
+def create_tree_sprite(size=64):
+    """Generate tree sprites."""
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    cx, cy = size // 2, size // 2
+    
+    # Shadow
+    draw.ellipse([cx - size//4, cy + size//6, cx + size//4, cy + size//4], fill=(0, 0, 0, 30))
+    
+    # Trunk
+    draw.rectangle([cx - 3, cy - 5, cx + 3, cy + size//4], fill=(100, 65, 30, 255))
+    
+    # Foliage layers
+    colors = [(40, 120, 40, 255), (50, 140, 50, 240), (60, 160, 60, 220)]
+    for i, c in enumerate(colors):
+        r = size//4 - i*4
+        draw.ellipse([cx - r, cy - size//3 - 5 + i*8, cx + r, cy - size//6 + i*8], fill=c)
+    
+    # Highlight
+    draw.ellipse([cx - 5, cy - size//3 - 2, cx + 3, cy - size//4], fill=(100, 200, 100, 120))
+    
+    return img
+
+def save_all_sprites():
+    """Generate all game sprites."""
+    print("Generating character sprites...")
+    save_character_sheet()
+    
+    print("\nGenerating building sprites...")
+    buildings = [
+        ("castle", (130, 80, 40), (180, 50, 50)),
+        ("barracks", (150, 90, 50), (180, 100, 60)),
+        ("archery", (120, 80, 40), (170, 120, 70)),
+        ("stable", (140, 95, 45), (160, 130, 80)),
+        ("wall", (120, 100, 70), (100, 90, 60)),
+        ("tower_arrow", (130, 85, 45), (160, 50, 50)),
+    ]
+    for name, bc, rc in buildings:
+        img = create_building_sprite(name, bc, rc)
+        path = os.path.join(SPRITE_DIR, f"building_{name}.png")
+        img.save(path)
+        print(f"  ✅ building_{name}.png")
+    
+    print("\nGenerating tree sprites...")
+    for i in range(3):
+        img = create_tree_sprite()
+        path = os.path.join(SPRITE_DIR, f"tree_{i}.png")
+        img.save(path)
+        print(f"  ✅ tree_{i}.png")
+
+if __name__ == "__main__":
+    save_all_sprites()
+    print(f"\nAll sprites saved to {SPRITE_DIR}/")
+    print("Total files:", len(os.listdir(SPRITE_DIR)))
+
 if __name__ == "__main__":
     print("Generating sprites...")
     save_character_sheet()
