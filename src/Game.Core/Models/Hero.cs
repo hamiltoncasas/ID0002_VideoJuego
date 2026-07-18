@@ -14,6 +14,9 @@ public class Hero : Entity
     public int ExperienceToNextLevel { get; set; }
     public int Stars { get; set; } // 1-7, como Magic Rush
     public TargetPriority TargetPriority { get; set; }
+    public PassiveAbility? Passive { get; set; }
+    public int ShieldHp { get; set; } // HP de escudo temporal
+    public bool HasSecondChance { get; set; }
     public List<Equipment> Equipment { get; private set; }
 
     /// <summary>

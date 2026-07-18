@@ -8,7 +8,7 @@ namespace Game.Data.Config;
 /// </summary>
 public static class GameBalance
 {
-    // --- HÉROES DISPONIBLES ---
+    // ─── HÉROES DISPONIBLES ───
     public static List<HeroTemplate> HeroTemplates => new()
     {
         new HeroTemplate
@@ -24,6 +24,12 @@ public static class GameBalance
             },
             Rarity = Rarity.Common,
             FormationRow = FormationRow.Front,
+            Passive = new PassiveAbility
+            {
+                Id = "passive_guerrero", Name = "Furia Solar",
+                Description = "Al matar un enemigo, recupera 10% de su HP máximo.",
+                Trigger = PassiveTrigger.OnKill, Effect = PassiveEffect.HealOnKill, Value = 0.10, ValuePerLevel = 0.02
+            },
             Skills = new List<SkillTemplate>
             {
                 new() { Id = "skill_golpe_poderoso", Name = "Golpe Poderoso",
@@ -45,6 +51,12 @@ public static class GameBalance
             },
             Rarity = Rarity.Rare,
             FormationRow = FormationRow.Back,
+            Passive = new PassiveAbility
+            {
+                Id = "passive_chaman", Name = "Sabiduría Ancestral",
+                Description = "Todas las unidades aliadas tienen +8% de ataque.",
+                Trigger = PassiveTrigger.AlwaysOn, Effect = PassiveEffect.TeamStatBoost, Value = 0.08, ValuePerLevel = 0.02
+            },
             Skills = new List<SkillTemplate>
             {
                 new() { Id = "skill_rayo_solar", Name = "Rayo Solar",
@@ -66,6 +78,12 @@ public static class GameBalance
             },
             Rarity = Rarity.Common,
             FormationRow = FormationRow.Front,
+            Passive = new PassiveAbility
+            {
+                Id = "passive_guardiana", Name = "Escudo Sagrado",
+                Description = "Al iniciar la batalla, obtiene un escudo que absorbe 15% de su HP máximo.",
+                Trigger = PassiveTrigger.BattleStart, Effect = PassiveEffect.Shield, Value = 0.15, ValuePerLevel = 0.03
+            },
             Skills = new List<SkillTemplate>
             {
                 new() { Id = "skill_escudo_sagrado", Name = "Escudo Sagrado",
@@ -74,10 +92,64 @@ public static class GameBalance
                         SelfBuff = new Buff("buff_escudo", "Protección Solar", BuffType.Invulnerability, 3.0),
                         Description = "Se vuelve invulnerable por 3 segundos." }
             }
+        },
+        new HeroTemplate
+        {
+            Id = "hero_aguila",
+            Name = "Águila Guerrera",
+            BaseStats = new Stats
+            {
+                MaxHp = 900, CurrentHp = 900,
+                Attack = 100, Defense = 25, MagicDefense = 20,
+                AttackSpeed = 1.8, Range = 2.5, MoveSpeed = 3.5,
+                CritRate = 0.20, CritDamage = 2.0, DodgeRate = 0.12
+            },
+            Rarity = Rarity.Epic,
+            FormationRow = FormationRow.Front,
+            Passive = new PassiveAbility
+            {
+                Id = "passive_aguila", Name = "Garra Veloz",
+                Description = "Cada ataque tiene 20% de chance de golpear dos veces.",
+                Trigger = PassiveTrigger.AlwaysOn, Effect = PassiveEffect.SplashAttack, Value = 0.20, ValuePerLevel = 0.03
+            },
+            Skills = new List<SkillTemplate>
+            {
+                new() { Id = "skill_rafaga", Name = "Ráfaga de Plumas",
+                        TargetType = SkillTargetType.AllEnemies, Cooldown = 10,
+                        BaseDamage = 30, DamageMultiplier = 1.2, DamageType = DamageType.Physical,
+                        Description = "Ataca a todos los enemigos causando 120% de daño físico." }
+            }
+        },
+        new HeroTemplate
+        {
+            Id = "hero_curandera",
+            Name = "Sacerdotisa Lunar",
+            BaseStats = new Stats
+            {
+                MaxHp = 700, CurrentHp = 700,
+                Attack = 40, Defense = 15, MagicDefense = 60,
+                AttackSpeed = 0.6, Range = 5.0, MoveSpeed = 2.0,
+                CritRate = 0.05, CritDamage = 1.5, DodgeRate = 0.15
+            },
+            Rarity = Rarity.Rare,
+            FormationRow = FormationRow.Back,
+            Passive = new PassiveAbility
+            {
+                Id = "passive_curandera", Name = "Luz Sanadora",
+                Description = "Cada 5 segundos, cura al héroe más herido del equipo por 5% de su HP.",
+                Trigger = PassiveTrigger.Periodic, Effect = PassiveEffect.HealOnKill, Value = 0.05, ValuePerLevel = 0.01
+            },
+            Skills = new List<SkillTemplate>
+            {
+                new() { Id = "skill_curacion", Name = "Plegaria Lunar",
+                        TargetType = SkillTargetType.AllAllies, Cooldown = 8,
+                        BaseDamage = 0, DamageMultiplier = 0, DamageType = DamageType.Magic,
+                        Description = "Cura a todos los aliados por 20% de su HP máximo." }
+            }
         }
     };
 
-    // --- UNIDADES INVOCABLES ---
+    // ─── UNIDADES INVOCABLES ───
     public static List<UnitTemplate> UnitTemplates => new()
     {
         new UnitTemplate
@@ -117,9 +189,42 @@ public static class GameBalance
             Description = "Poderoso daño mágico. Devasta formaciones enemigas."
         }
     };
+
+    // ─── SINERGIAS ENTRE HÉROES ───
+    public static List<Synergy> Synergies => new()
+    {
+        new Synergy
+        {
+            Id = "syn_sol_luna", Name = "Sol y Luna",
+            Description = "La dualidad solar y lunar otorga +12% a todos los stats.",
+            RequiredCount = 2, RequiredHeroIds = new() { "hero_guerrero", "hero_curandera" },
+            Effect = SynergyEffect.AllStatsPercent, Value = 0.12
+        },
+        new Synergy
+        {
+            Id = "syn_sabiduria", Name = "Sabiduría Ancestral",
+            Description = "Chamán + Sacerdotisa: +15% velocidad de ataque para todos.",
+            RequiredCount = 2, RequiredHeroIds = new() { "hero_chaman", "hero_curandera" },
+            Effect = SynergyEffect.AttackSpeedPercent, Value = 0.15
+        },
+        new Synergy
+        {
+            Id = "syn_guardianes", Name = "Guardianes del Templo",
+            Description = "Guerrero + Guardiana: +10% reducción de daño recibido.",
+            RequiredCount = 2, RequiredHeroIds = new() { "hero_guerrero", "hero_guardiana" },
+            Effect = SynergyEffect.DamageReduction, Value = 0.10
+        },
+        new Synergy
+        {
+            Id = "syn_cazadores", Name = "Cazadores del Cielo",
+            Description = "Águila Guerrera en el equipo: +8% chance de crítico para todas las unidades.",
+            RequiredCount = 1, RequiredHeroIds = new() { "hero_aguila" },
+            Effect = SynergyEffect.CriticalChance, Value = 0.08
+        }
+    };
 }
 
-// --- CLASES AUXILIARES DE CONFIGURACIÓN ---
+// ─── CLASES AUXILIARES ───
 
 public class HeroTemplate
 {
@@ -128,6 +233,7 @@ public class HeroTemplate
     public Stats BaseStats { get; set; } = new();
     public Rarity Rarity { get; set; }
     public FormationRow FormationRow { get; set; }
+    public PassiveAbility? Passive { get; set; }
     public List<SkillTemplate> Skills { get; set; } = new();
 }
 

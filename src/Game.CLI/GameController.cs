@@ -81,9 +81,11 @@ public class GameController
             Console.WriteLine();
             Console.WriteLine("  1. ⚔️  JUGAR CAMPAÑA");
             Console.WriteLine("  2. 🦸  Seleccionar héroe principal");
-            Console.WriteLine("  3. 📜  Ver héroes y equipo");
-            Console.WriteLine("  4. 💾  Guardar progreso");
-            Console.WriteLine("  5. 🚪  Salir");
+            Console.WriteLine("  3. 📜  Ver héroes y pasivas");
+            Console.WriteLine("  4. 🔗  Sinergias entre héroes");
+            Console.WriteLine("  5. 🔬  Árbol de tecnología");
+            Console.WriteLine("  6. 💾  Guardar progreso");
+            Console.WriteLine("  7. 🚪  Salir");
             Console.WriteLine();
 
             var choice = Prompt("Elige: ");
@@ -92,8 +94,10 @@ public class GameController
                 case "1": StartCampaign(); break;
                 case "2": SelectMainHero(); break;
                 case "3": ShowHeroDetails(); break;
-                case "4": SaveGame(); break;
-                case "5":
+                case "4": ShowSynergies(); break;
+                case "5": ShowTechTree(); break;
+                case "6": SaveGame(); break;
+                case "7":
                     SaveGame();
                     _running = false;
                     RenderText("\n¡Hasta la próxima, Arqueólogo! El anillo te espera...", ConsoleColor.Yellow);
@@ -127,15 +131,25 @@ public class GameController
             Console.WriteLine($"     Fila: {t.FormationRow}  HP: {t.BaseStats.MaxHp}  ATK: {t.BaseStats.Attack}  DEF: {t.BaseStats.Defense}");
             foreach (var s in t.Skills)
                 Console.WriteLine($"     ⚡ {s.Name}: {s.Description}");
+            if (t.Passive != null)
+                Console.WriteLine($"     ✨ {t.Passive.Name}: {t.Passive.Description}");
             Console.WriteLine();
         }
 
-        var choice = Prompt("Elige héroe (1-3): ");
+        var choice = Prompt($"Elige héroe (1-{templates.Count}): ");
         if (int.TryParse(choice, out int idx) && idx >= 1 && idx <= templates.Count)
         {
             var template = templates[idx - 1];
             _mainHero = new Hero(template.Id, template.Name, template.BaseStats.Clone(), template.Rarity);
             _mainHero.FormationRow = template.FormationRow;
+            if (template.Passive != null)
+                _mainHero.Passive = new PassiveAbility
+                {
+                    Id = template.Passive.Id, Name = template.Passive.Name,
+                    Description = template.Passive.Description,
+                    Trigger = template.Passive.Trigger, Effect = template.Passive.Effect,
+                    Value = template.Passive.Value, ValuePerLevel = template.Passive.ValuePerLevel
+                };
 
             foreach (var st in template.Skills)
             {
@@ -204,8 +218,20 @@ public class GameController
                 RenderText("  (sin equipo equipado)", ConsoleColor.DarkGray);
             }
 
-            // Habilidades
-            Console.WriteLine($"\n  ─── HABILIDADES ───");
+            // Pasiva
+            if (_mainHero.Passive != null)
+            {
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine($"\n  ─── HABILIDAD PASIVA ───");
+                Console.ResetColor();
+                var p = _mainHero.Passive;
+                Console.WriteLine($"  ✨ {p.Name} ({p.Trigger})");
+                Console.WriteLine($"     {p.Description}");
+                Console.WriteLine($"     Valor: +{p.CurrentValue * 100:F0}% (Nv.{p.Level})");
+            }
+
+            // Habilidades activas
+            Console.WriteLine($"\n  ─── HABILIDADES ACTIVAS ───");
             foreach (var skill in _mainHero.Skills)
             {
                 Console.WriteLine($"  ⚡ {skill.Name} (Nv.{skill.Level}) CD:{skill.CooldownSeconds}s");
@@ -231,6 +257,79 @@ public class GameController
         }
 
         Prompt("\nPresiona ENTER...");
+    }
+
+    private void ShowSynergies()
+    {
+        Console.Clear();
+        RenderTitle("🔗  SINERGIAS ENTRE HÉROES", ConsoleColor.Magenta);
+        Console.WriteLine();
+        RenderText("  Si llevás ciertos héroes juntos al equipo, se activan bonificaciones:", ConsoleColor.Cyan);
+        Console.WriteLine();
+
+        foreach (var syn in GameBalance.Synergies)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"  🌟 {syn.Name}");
+            Console.ResetColor();
+            Console.WriteLine($"     {syn.Description}");
+            Console.WriteLine($"     Requiere: {syn.RequiredCount} héroes");
+            var names = syn.RequiredHeroIds.Select(id =>
+                GameBalance.HeroTemplates.Find(h => h.Id == id)?.Name ?? id);
+            Console.WriteLine($"     Héroes: {string.Join(", ", names)}");
+            Console.WriteLine();
+        }
+
+        // Sinergias activas con el héroe actual
+        if (_mainHero != null)
+        {
+            var testTeam = new List<Hero> { _mainHero };
+            var active = SynergyEvaluator.Evaluate(testTeam, GameBalance.Synergies);
+            if (active.Any())
+            {
+                RenderText("\n  Con tu héroe actual + el soporte adecuado:", ConsoleColor.Green);
+                foreach (var a in active)
+                    Console.WriteLine($"  ✅ {a.Name} — {a.Description}");
+            }
+        }
+
+        Prompt("\nPresiona ENTER...");
+    }
+
+    private void ShowTechTree()
+    {
+        Console.Clear();
+        RenderTitle("🔬  ÁRBOL DE TECNOLOGÍA", ConsoleColor.Cyan);
+        Console.WriteLine();
+        RenderText("  Mejorá tus capacidades invirtiendo oro y comida.", ConsoleColor.Gray);
+        Console.WriteLine();
+
+        var techTree = TechTree.CreateDefault();
+        foreach (var tech in techTree.Technologies)
+        {
+            var catColor = tech.Category switch
+            {
+                TechCategory.Military => ConsoleColor.Red,
+                TechCategory.Economy => ConsoleColor.Yellow,
+                TechCategory.Defense => ConsoleColor.Blue,
+                TechCategory.Magic => ConsoleColor.Magenta,
+                _ => ConsoleColor.Gray
+            };
+            Console.ForegroundColor = catColor;
+            Console.WriteLine($"  [{tech.Category}] {tech.Name}  Nv.{tech.Level}/{tech.MaxLevel}");
+            Console.ResetColor();
+            Console.WriteLine($"     {tech.Description}");
+            Console.WriteLine($"     Bonificación actual: +{tech.CurrentValue * 100:F0}%");
+            Console.WriteLine($"     Próximo nivel: 🪙{tech.GoldCost}  🌾{tech.FoodCost}");
+            Console.WriteLine();
+        }
+
+        Prompt("\nPresiona ENTER...");
+    }
+
+    private void UpdateHeroDetailsShowPassives()
+    {
+        // Esta función se llama desde ShowHeroDetails
     }
 
     // ═══════════════════════════════════════════════
