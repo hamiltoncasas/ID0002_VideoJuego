@@ -339,9 +339,9 @@ func _build_hud():
 		act.name = "Act" + str(i)
 		act.position = Vector2(480 + i * 90, 685); act.size = Vector2(80, 30)
 		act.visible = false; ui.add_child(act)
-	
-	# Connect Act0 to toggle build menu
-	ui.get_node("Act0").pressed.connect(_toggle_build_menu)
+		# All Act buttons route through _on_act_pressed
+		var act_idx = i
+		act.pressed.connect(func(): _on_act_pressed(act_idx))
 
 func _build_minimap():
 	var bg = ColorRect.new()
@@ -724,9 +724,7 @@ func _select_building(b):
 			if btn and i < bdata["units"].size():
 				btn.visible = true
 				var u = bdata["units"][i]
-				btn.text = u["name"] + "\n" + str(u["cost"])
-				var unit_idx = i
-				btn.pressed.connect(_on_train_pressed.bind(unit_idx))
+				btn.text = u["name"] + "\n🪙" + str(u["cost"].get("gold",0))
 	
 	# Update info text
 	var it = ui.get_node("InfoText")
@@ -862,6 +860,17 @@ func _show_info(e):
 		if act:
 			act.visible = true
 			act.text = "🏗️ Construir"
+
+func _on_act_pressed(idx):
+	# If a building is selected and has training options
+	if selected_building and building_units.has(selected_building["type"]):
+		var bdata = building_units[selected_building["type"]]
+		if idx >= 0 and idx < bdata["units"].size():
+			_train_unit(bdata, idx)
+		return
+	# If a villager is selected, Act0 = toggle build menu
+	if idx == 0 and selected.size() > 0 and selected[0]["type"] == "villager":
+		_toggle_build_menu()
 
 func _toggle_build_menu():
 	var vis = not ui.get_node("Build0").visible
