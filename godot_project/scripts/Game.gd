@@ -1,160 +1,221 @@
 extends Control
 
+# ─── WORLD ───
 const WORLD_W = 4000; const WORLD_H = 4000
 var cam = Vector2(640, 360)
 var cam_speed = 400.0
-var zoom = 1.0
 var entities = []
 var buildings = []
-var resources = []
+var res_nodes = []
 var selected = []
-var paused = false
 var show_menu = false
 var game_res = {"gold": 200, "stone": 100, "food": 150, "wood": 150, "copper": 0, "bronze": 0, "diamond": 0, "leather": 0}
 
 @onready var world = $World
-@onready var ents = $World/Entities
-@onready var builds = $World/Buildings
-@onready var resc = $World/Resources
+@onready var ents_node = $World/Entities
+@onready var builds_node = $World/Buildings
+@onready var res_node = $World/Resources
 @onready var ui = $UI
 
 var rng = RandomNumberGenerator.new()
 
 func _ready():
-	_gen_terrain()
-	_gen_resources()
-	_spawn_start()
-	_build_hud()
-	_gen_minimap()
+	RenderingServer.set_default_clear_color(Color(0.1, 0.22, 0.08))
+	_generate_terrain()
+	_generate_resources()
+	_spawn_entities()
+	_build_ui()
+	_build_minimap()
 
-func _gen_terrain():
-	var g = ColorRect.new()
-	g.size = Vector2(WORLD_W, WORLD_H); g.color = Color(0.15, 0.3, 0.1)
-	g.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	world.add_child(g)
-	for x in range(0, WORLD_W, 96):
+# ─── TERRAIN ───
+func _generate_terrain():
+	# Base grass with gradient-like layers
+	for i in 3:
+		var layer = ColorRect.new()
+		layer.size = Vector2(WORLD_W, WORLD_H)
+		layer.color = Color(0.12 + i * 0.03, 0.28 + i * 0.04, 0.08 + i * 0.02, 0.4)
+		layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		world.add_child(layer)
+	
+	# Grid
+	for x in range(0, WORLD_W, 64):
 		var l = ColorRect.new()
 		l.size = Vector2(1, WORLD_H); l.position = Vector2(x, 0)
-		l.color = Color(0.1, 0.25, 0.08, 0.15); l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		l.color = Color(0.08, 0.2, 0.06, 0.12); l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		world.add_child(l)
-	for y in range(0, WORLD_H, 96):
+	for y in range(0, WORLD_H, 64):
 		var l = ColorRect.new()
 		l.size = Vector2(WORLD_W, 1); l.position = Vector2(0, y)
-		l.color = Color(0.1, 0.25, 0.08, 0.15); l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		l.color = Color(0.08, 0.2, 0.06, 0.12); l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		world.add_child(l)
-	for i in range(30):
+	
+	# Terrain patches
+	var pat_colors = [Color(0.2, 0.38, 0.12, 0.1), Color(0.25, 0.35, 0.15, 0.08), Color(0.15, 0.4, 0.1, 0.06)]
+	for i in 40:
 		var p = ColorRect.new()
-		p.size = Vector2(80 + rng.randi() % 150, 60 + rng.randi() % 120)
+		p.size = Vector2(60 + rng.randi() % 200, 50 + rng.randi() % 160)
 		p.position = Vector2(rng.randi() % (WORLD_W - 200), rng.randi() % (WORLD_H - 150))
-		p.color = Color(0.18, 0.35, 0.12, 0.12); p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		p.color = pat_colors[i % pat_colors.size()]
+		p.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		world.add_child(p)
+	
+	# Dirt paths
+	for i in range(5):
+		var path = ColorRect.new()
+		path.size = Vector2(40 + rng.randi() % 60, 800 + rng.randi() % 600)
+		path.position = Vector2(rng.randi() % (WORLD_W - 100), rng.randi() % (WORLD_H - 600))
+		path.color = Color(0.3, 0.22, 0.12, 0.12)
+		path.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		world.add_child(path)
+	
+	# Lake
 	var lake = ColorRect.new()
-	lake.size = Vector2(300, 200); lake.position = Vector2(2800, 1200)
-	lake.color = Color(0.2, 0.4, 0.6, 0.4); lake.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lake.size = Vector2(350, 250); lake.position = Vector2(2800, 1100)
+	lake.color = Color(0.15, 0.35, 0.55, 0.45)
+	lake.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	world.add_child(lake)
+	# Lake border
+	var lb = ColorRect.new()
+	lb.size = Vector2(380, 280); lb.position = Vector2(2785, 1085)
+	lb.color = Color(0.2, 0.4, 0.5, 0.15)
+	lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	world.add_child(lb)
 
-func _gen_resources():
+	# Decorative grass tufts
+	for i in 60:
+		var g = Label.new()
+		var items = ["🌿", "🌱", "🌾", "🍃"]
+		g.text = items[i % items.size()]
+		g.add_theme_font_size_override("font_size", 8 + rng.randi() % 8)
+		g.position = Vector2(rng.randi() % WORLD_W, rng.randi() % WORLD_H)
+		g.modulate = Color(1, 1, 1, 0.08 + rng.randf() * 0.08)
+		g.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		world.add_child(g)
+
+func _generate_resources():
 	var defs = [
-		["tree", 80, Color(0.1, 0.5, 0.1), "tree", 50],
-		["gold", 6, Color(1, 0.8, 0.1), "diamond", 300],
-		["stone", 8, Color(0.5, 0.5, 0.5), "stone", 200],
-		["deer", 5, Color(0.6, 0.4, 0.2), "deer", 30],
+		["tree", 60, Color(0.08, 0.4, 0.08), "🌲", 50],
+		["gold", 5, Color(0.9, 0.7, 0.1), "🪨", 300],
+		["stone", 6, Color(0.5, 0.5, 0.5), "🪨", 200],
+		["deer", 4, Color(0.55, 0.35, 0.2), "🦌", 30],
 	]
-	var icons = {"tree": "tree", "gold": "diamond", "stone": "stone_cube", "deer": "deer"}
 	for d in defs:
 		for i in range(d[1]):
 			var pos = Vector2(100 + rng.randi() % (WORLD_W - 200), 100 + rng.randi() % (WORLD_H - 200))
 			var r = ColorRect.new()
-			r.size = Vector2(18, 18); r.position = pos; r.color = d[2]
-			r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			r.size = Vector2(22, 22); r.position = pos - Vector2(2, 2)
+			r.color = d[2]; r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			world.add_child(r)
 			var l = Label.new()
-			l.text = _res_icon(d[0]); l.add_theme_font_size_override("font_size", 14)
-			l.position = pos - Vector2(6, 16); l.size = Vector2(30, 30)
+			l.text = d[3]; l.add_theme_font_size_override("font_size", 18)
+			l.position = pos - Vector2(9, 18); l.size = Vector2(36, 36)
 			l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			world.add_child(l)
-			resources.append({"type": d[0], "pos": pos, "amount": d[4] + rng.randi() % 50, "node": r, "icon": l})
+			res_nodes.append({"type": d[0], "pos": pos, "amount": d[4] + rng.randi() % 30, "node": r})
 
-func _res_icon(type):
-	match type:
-		"tree": return "🌲"
-		"gold": return "💎"
-		"stone": return "🪨"
-		"deer": return "🦌"
-	return "❓"
-
-func _spawn_start():
+func _spawn_entities():
 	var cp = Vector2(400, WORLD_H / 2 - 40)
 	_make_building("castle", cp)
-	_make_entity("hero", cp + Vector2(-50, 40), Color(1, 0.7, 0.1), "hero", 1500, 70, 55)
-	_make_entity("villager", cp + Vector2(-100, -60), Color(0.6, 0.4, 0.3), "villager", 100, 8, 3)
-	_make_entity("villager", cp + Vector2(-100, 80), Color(0.6, 0.4, 0.3), "villager", 100, 8, 3)
-	_make_entity("artisan", cp + Vector2(-80, 10), Color(0.7, 0.6, 0.2), "artisan", 80, 5, 2)
-	_make_entity("warrior", cp + Vector2(100, -80), Color(0.7, 0.4, 0.2), "warrior", 300, 35, 20)
-	_make_entity("archer", cp + Vector2(100, 0), Color(0.3, 0.6, 0.3), "archer", 150, 42, 8)
-	_make_entity("cavalry", cp + Vector2(100, 80), Color(0.8, 0.5, 0.2), "cavalry", 400, 48, 25)
+	_make_entity("hero", cp + Vector2(-60, 40), "🦸", Color(1, 0.7, 0.1), 1500, 70)
+	_make_entity("villager", cp + Vector2(-110, -70), "👷", Color(0.6, 0.4, 0.3), 100, 8)
+	_make_entity("villager", cp + Vector2(-110, 90), "👷", Color(0.6, 0.4, 0.3), 100, 8)
+	_make_entity("artisan", cp + Vector2(-90, 10), "🔧", Color(0.7, 0.6, 0.2), 80, 5)
+	_make_entity("warrior", cp + Vector2(100, -90), "⚔️", Color(0.7, 0.4, 0.2), 300, 35)
+	_make_entity("archer", cp + Vector2(100, 0), "🏹", Color(0.3, 0.6, 0.3), 150, 42)
+	_make_entity("cavalry", cp + Vector2(100, 90), "🐎", Color(0.8, 0.5, 0.2), 400, 48)
 
-func _icon_char(type):
-	match type:
-		"hero": return "🦸"
-		"villager": return "👷"
-		"artisan": return "🔧"
-		"warrior": return "⚔️"
-		"archer": return "🏹"
-		"cavalry": return "🐎"
-	return "❓"
-
-func _make_entity(type, pos, color, icon_text, hp_val, atk, def_val):
-	var r = ColorRect.new()
-	r.size = Vector2(14, 18); r.position = pos; r.color = color
-	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	ents.add_child(r)
-	var l = Label.new()
-	l.text = _icon_char(type); l.add_theme_font_size_override("font_size", 16)
-	l.position = pos - Vector2(7, 20); l.size = Vector2(28, 28)
-	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	ents.add_child(l)
-	entities.append({"type": type, "node": r, "icon": l, "pos": pos, "hp": hp_val, "max_hp": hp_val, "atk": atk, "def": def_val, "sel": false, "target": null, "moving": false, "move_to": pos, "task": "idle"})
+func _make_entity(type, pos, icon, color, hp, atk):
+	var container = Node2D.new()
+	container.position = pos
+	ents_node.add_child(container)
+	
+	var body = ColorRect.new()
+	body.size = Vector2(18, 22); body.position = Vector2(-9, -11)
+	body.color = color; body.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	container.add_child(body)
+	
+	var hp_bg = ColorRect.new()
+	hp_bg.size = Vector2(22, 3); hp_bg.position = Vector2(-11, -15)
+	hp_bg.color = Color(0.2, 0.05, 0.05, 0.6); hp_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hp_bg.name = "hp_bg"; container.add_child(hp_bg)
+	
+	var hp_fill = ColorRect.new()
+	hp_fill.size = Vector2(22, 3); hp_fill.position = Vector2(-11, -15)
+	hp_fill.color = Color(0.2, 0.8, 0.2, 0.9); hp_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hp_fill.name = "hp_fill"; container.add_child(hp_fill)
+	
+	var label = Label.new()
+	label.text = icon; label.add_theme_font_size_override("font_size", 18)
+	label.position = Vector2(-9, -10); label.size = Vector2(28, 28)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE; label.name = "icon"
+	container.add_child(label)
+	
+	# Selection ring
+	var sel = ColorRect.new()
+	sel.size = Vector2(30, 34); sel.position = Vector2(-15, -17)
+	sel.color = Color(0, 0, 0, 0); sel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	sel.name = "sel"; container.add_child(sel)
+	
+	# Area2D for clicks
+	var area = Area2D.new()
+	var shape = RectangleShape2D.new()
+	shape.size = Vector2(30, 30)
+	var col = CollisionShape2D.new()
+	col.shape = shape
+	area.add_child(col)
+	container.add_child(area)
+	
+	entities.append({
+		"type": type, "node": container, "pos": pos, "target_pos": pos,
+		"hp": hp, "max_hp": hp, "atk": atk, "moving": false, "task": "idle",
+		"gather_target": null, "anim_time": rng.randf() * 100,
+		"sel_ring": sel, "hp_fill": hp_fill, "label": label, "area": area
+	})
 
 func _make_building(type, pos):
-	var bcolors = {"castle": Color(0.4, 0.25, 0.1), "wall": Color(0.4, 0.35, 0.25), "tower_arrow": Color(0.5, 0.3, 0.2)}
-	var bicons = {"castle": "castle", "wall": "wall", "tower_arrow": "tower_arrow"}
-	var bsizes = {"castle": Vector2(80, 80), "wall": Vector2(40, 16), "tower_arrow": Vector2(40, 40)}
-	var bhp = {"castle": 5000, "wall": 2000, "tower_arrow": 2500}
+	var bnode = Node2D.new()
+	bnode.position = pos
+	world.add_child(bnode)
 	
-	var r = ColorRect.new()
-	r.size = bsizes.get(type, Vector2(50, 50)); r.position = pos; r.color = bcolors.get(type, Color(0.3, 0.2, 0.1))
-	r.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(r)
+	var body = ColorRect.new()
+	var colors = {"castle": Color(0.45, 0.3, 0.15), "wall": Color(0.5, 0.4, 0.3), "tower_arrow": Color(0.5, 0.35, 0.2)}
+	var sizes = {"castle": Vector2(80, 80), "wall": Vector2(40, 16), "tower_arrow": Vector2(40, 40)}
+	var max_hp = {"castle": 5000, "wall": 2000, "tower_arrow": 2500}
+	var icons = {"castle": "🏰", "wall": "🧱", "tower_arrow": "🗼"}
+	
+	body.size = sizes.get(type, Vector2(50, 50))
+	body.position = -body.size / 2
+	body.color = colors.get(type, Color(0.3, 0.2, 0.1))
+	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bnode.add_child(body)
+	
 	var lbl = Label.new()
-	lbl.text = _building_icon(type); lbl.add_theme_font_size_override("font_size", 22)
-	lbl.position = pos + Vector2(10, 10); lbl.size = Vector2(50, 40)
-	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(lbl)
-	buildings.append({"type": type, "node": r, "icon": lbl, "pos": pos, "hp": bhp.get(type, 1000), "max_hp": bhp.get(type, 1000)})
+	lbl.text = icons.get(type, "🏗️")
+	lbl.add_theme_font_size_override("font_size", 24)
+	lbl.position = Vector2(-15, -10); lbl.size = Vector2(40, 40)
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bnode.add_child(lbl)
+	
+	buildings.append({"type": type, "node": bnode, "pos": pos, "hp": max_hp.get(type, 1000), "max_hp": max_hp.get(type, 1000)})
 
-func _building_icon(type):
-	match type:
-		"castle": return "🏰"
-		"wall": return "🧱"
-		"tower_arrow": return "🗼"
-	return "🏗️"
-
-func _build_hud():
+# ─── HUD ───
+func _build_ui():
 	var bar = ColorRect.new()
 	bar.size = Vector2(1280, 34); bar.color = Color(0, 0, 0, 0.85)
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE; ui.add_child(bar)
 	
-	var keys = ["gold", "stone", "food", "wood", "copper", "bronze", "diamond", "leather"]
-	var icons = ["gold", "stone", "food", "wood", "copper", "bronze", "diamond", "leather"]
+	var rkeys = ["gold", "stone", "food", "wood", "copper", "bronze", "diamond", "leather"]
+	var ricons = ["🪙", "🪨", "🌾", "🪵", "🟤", "🔶", "💎", "👜"]
 	for i in range(8):
 		var l = Label.new()
 		l.name = "RC" + str(i)
-		l.text = _res_short(keys[i]) + " " + keys[i].capitalize() + ": " + str(game_res[keys[i]])
+		l.text = ricons[i] + " " + rkeys[i].capitalize() + ": " + str(game_res[rkeys[i]])
 		l.add_theme_font_size_override("font_size", 10)
 		l.position = Vector2(15 + i * 155, 5); l.size = Vector2(150, 24)
 		l.mouse_filter = Control.MOUSE_FILTER_IGNORE; ui.add_child(l)
 	
 	var mb = Button.new()
-	mb.name = "MenuBtn"; mb.text = "MENU"
+	mb.name = "MenuBtn"; mb.text = "☰ MENU"
 	mb.position = Vector2(1180, 3); mb.size = Vector2(90, 28)
 	ui.add_child(mb); mb.pressed.connect(_toggle_menu)
 	
@@ -175,36 +236,26 @@ func _build_hud():
 		b.position = Vector2(460 + i * 90, 685); b.size = Vector2(80, 30)
 		b.visible = false; ui.add_child(b)
 
-func _res_short(key):
-	match key:
-		"gold": return "🪙"
-		"stone": return "🪨"
-		"food": return "🌾"
-		"wood": return "🪵"
-		"copper": return "🟤"
-		"bronze": return "🔶"
-		"diamond": return "💎"
-		"leather": return "👜"
-	return "❓"
-
-func _gen_minimap():
+func _build_minimap():
 	var bg = ColorRect.new()
 	bg.name = "MMBg"; bg.size = Vector2(164, 164)
-	bg.position = Vector2(1280 - 174, 720 - 174); bg.color = Color(0.05, 0.03, 0.08, 0.9)
+	bg.position = Vector2(1280 - 174, 720 - 174); bg.color = Color(0.03, 0.02, 0.06, 0.95)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE; ui.add_child(bg)
 	
 	var m = ColorRect.new()
 	m.name = "MMap"; m.size = Vector2(160, 160)
-	m.position = Vector2(1280 - 172, 720 - 172); m.color = Color(0.12, 0.22, 0.06)
+	m.position = Vector2(1280 - 172, 720 - 172); m.color = Color(0.1, 0.2, 0.06)
 	m.mouse_filter = Control.MOUSE_FILTER_IGNORE; ui.add_child(m)
 	
 	var cc = ColorRect.new()
 	cc.name = "MMCam"; cc.size = Vector2(50, 30)
-	cc.color = Color(1, 1, 1, 0.2); cc.mouse_filter = Control.MOUSE_FILTER_IGNORE; ui.add_child(cc)
+	cc.color = Color(1, 1, 1, 0.15); cc.mouse_filter = Control.MOUSE_FILTER_IGNORE; ui.add_child(cc)
 
+# ─── GAME LOOP ───
 func _process(delta):
 	if show_menu: return
 	
+	# Camera
 	var mv = Vector2()
 	if Input.is_key_pressed(KEY_W): mv.y -= 1
 	if Input.is_key_pressed(KEY_S): mv.y += 1
@@ -216,10 +267,10 @@ func _process(delta):
 	if Input.is_key_pressed(KEY_RIGHT): mv.x += 1
 	
 	var ms = get_global_mouse_position()
-	if ms.x < 10: mv.x -= 1
-	if ms.x > 1270: mv.x += 1
+	if ms.x < 15: mv.x -= 1
+	if ms.x > 1265: mv.x += 1
 	if ms.y < 40: mv.y -= 1
-	if ms.y > 710: mv.y += 1
+	if ms.y > 715: mv.y += 1
 	
 	if mv.length() > 0:
 		mv = mv.normalized() * cam_speed * delta
@@ -229,49 +280,70 @@ func _process(delta):
 	
 	world.position = -cam + Vector2(640, 360)
 	
+	# Minimap
 	var mm = ui.get_node("MMCam")
 	if mm:
-		var sx = 160.0 / WORLD_W; var sy = 160.0 / WORLD_H
-		mm.position = Vector2(1280 - 172 + cam.x * sx - 25, 720 - 172 + cam.y * sy - 15)
+		mm.position = Vector2(1280 - 172 + cam.x * 160.0 / WORLD_W - 25, 720 - 172 + cam.y * 160.0 / WORLD_H - 15)
 	
-	var keys = ["gold", "stone", "food", "wood", "copper", "bronze", "diamond", "leather"]
+	# Resource UI
+	var rkeys = ["gold", "stone", "food", "wood", "copper", "bronze", "diamond", "leather"]
+	var ricons = ["🪙", "🪨", "🌾", "🪵", "🟤", "🔶", "💎", "👜"]
 	for i in range(8):
 		var l = ui.get_node("RC" + str(i))
-		if l: l.text = _res_short(keys[i]) + " " + keys[i].capitalize() + ": " + str(game_res[keys[i]])
+		if l: l.text = ricons[i] + " " + rkeys[i].capitalize() + ": " + str(game_res[rkeys[i]])
 	
+	# Update entities
 	for e in entities:
-		if not e["node"] or not is_instance_valid(e["node"]): continue
+		if not is_instance_valid(e["node"]): continue
+		e["anim_time"] += delta
 		
+		# Movement
 		if e["moving"]:
-			var d = e["move_to"] - e["pos"]
+			var d = e["target_pos"] - e["pos"]
 			var dist = d.length()
-			if dist < 8:
-				e["moving"] = false; e["pos"] = e["move_to"]
+			if dist < 5:
+				e["moving"] = false; e["pos"] = e["target_pos"]
 			else:
 				d = d.normalized()
-				e["pos"] += d * 60 * delta
+				e["pos"] += d * 80 * delta
 				e["node"].position = e["pos"]
-				e["icon"].position = e["pos"] - Vector2(7, 20)
+				# Bob animation while moving
+				var bob = sin(e["anim_time"] * 10) * 1.5
+				e["node"].position.y += bob
 		
+		# Idle breathing
 		if not e["moving"] and e["task"] == "idle":
+			var breathe = sin(e["anim_time"] * 2) * 0.8
+			e["node"].position.y = e["pos"].y + breathe
+			
+			# AI
 			if e["type"] == "villager":
-				_find_resource(e)
-			elif e["type"] == "artisan":
-				e["move_to"] = e["pos"] + Vector2(rng.randf() * 200 - 100, rng.randf() * 200 - 100)
+				_ai_villager(e)
+			elif e["type"] == "artisan" and rng.randf() < 0.01:
+				e["target_pos"] = e["pos"] + Vector2(rng.randf() * 300 - 150, rng.randf() * 300 - 150)
 				e["moving"] = true
-			elif e["type"] in ["warrior", "archer", "cavalry"] and rng.randf() < 0.005:
-				e["move_to"] = e["pos"] + Vector2(rng.randf() * 500 - 250, rng.randf() * 500 - 250)
+			elif e["type"] in ["warrior", "archer", "cavalry"] and rng.randf() < 0.003:
+				e["target_pos"] = e["pos"] + Vector2(rng.randf() * 400 - 200, rng.randf() * 400 - 200)
 				e["moving"] = true
+		
+		# Selection pulse
+		if e.get("sel", false):
+			var pulse = 0.15 + sin(e["anim_time"] * 3) * 0.1
+			e["sel_ring"].color = Color(1, 1, 0, pulse)
+		else:
+			e["sel_ring"].color = Color(0, 0, 0, 0)
 
-func _find_resource(e):
+func _ai_villager(e):
 	var nearest = null; var md = 99999.0
-	for r in resources:
+	for r in res_nodes:
 		if r["amount"] <= 0: continue
 		var d = e["pos"].distance_to(r["pos"])
 		if d < md: md = d; nearest = r
-	if nearest and md < 600:
-		e["task"] = "gathering"; e["target"] = nearest
-		e["move_to"] = nearest["pos"]; e["moving"] = true
+	if nearest and md < 500:
+		e["task"] = "gathering"
+		e["gather_target"] = nearest
+		e["target_pos"] = nearest["pos"]
+		e["moving"] = true
 
 func _input(event):
 	if show_menu: return
@@ -281,32 +353,47 @@ func _input(event):
 			_select_at(wp)
 		elif event.button_index == MOUSE_BUTTON_RIGHT and selected.size() > 0:
 			for e in selected:
-				e["move_to"] = wp; e["moving"] = true; e["task"] = "idle"; e["target"] = null
+				e["target_pos"] = wp; e["moving"] = true; e["task"] = "idle"; e["gather_target"] = null
 
 func _select_at(wp):
-	for e in entities: e["sel"] = false; e["icon"].modulate = Color(1, 1, 1)
-	selected.clear()
 	for e in entities:
-		if e["pos"].distance_to(wp) < 30:
-			e["sel"] = true; e["icon"].modulate = Color(1, 1, 0)
-			selected.append(e); _show_info(e); return
+		e["sel"] = false
+	selected.clear()
+	
+	# Check clicks on entity areas
+	for e in entities:
+		if not is_instance_valid(e["node"]): continue
+		var dist = e["pos"].distance_to(wp)
+		if dist < 25:
+			e["sel"] = true; selected.append(e); _show_info(e); return
 	_hide_info()
 
 func _show_info(e):
 	var p = ui.get_node("InfoPanel"); var l = ui.get_node("InfoLabel")
 	if p: p.visible = true
-	if l: l.text = _icon_char(e["type"]) + " " + e["type"].capitalize() + " HP: " + str(e["hp"]) + "/" + str(e["max_hp"])
+	if l: l.text = _get_name(e["type"]) + " HP: " + str(e["hp"]) + "/" + str(e["max_hp"])
 	for i in range(3):
 		var b = ui.get_node("Act" + str(i))
 		if b: b.visible = false
 	if e["type"] == "villager":
 		var b = ui.get_node("Act0")
-		if b: b.visible = true; b.text = "Construir"
+		if b: b.visible = true; b.text = "🏗️ Construir"
+
+func _get_name(type):
+	match type:
+		"hero": return "Heroe"
+		"villager": return "Aldeano"
+		"artisan": return "Artesano"
+		"warrior": return "Guerrero"
+		"archer": return "Arquero"
+		"cavalry": return "Jinete"
+	return type
 
 func _hide_info():
 	var p = ui.get_node("InfoPanel")
 	if p: p.visible = false
 
+# ─── MENU ───
 func _toggle_menu():
 	show_menu = !show_menu
 	if show_menu: _show_menu()
@@ -314,13 +401,13 @@ func _toggle_menu():
 
 func _show_menu():
 	var o = ColorRect.new()
-	o.name = "MenuO"; o.size = Vector2(1280, 720); o.color = Color(0, 0, 0, 0.7)
+	o.name = "MenuO"; o.size = Vector2(1280, 720); o.color = Color(0, 0, 0, 0.75)
 	ui.add_child(o)
 	var t = Label.new()
-	t.text = "MENU DEL JUEGO"; t.add_theme_font_size_override("font_size", 24)
+	t.text = "☰ MENU DEL JUEGO"; t.add_theme_font_size_override("font_size", 24)
 	t.position = Vector2(440, 150); t.size = Vector2(400, 40)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; o.add_child(t)
-	var items = [["REANUDAR", "_resume"], ["REINICIAR", "_restart"], ["GUARDAR", "_save"], ["MENU PRINCIPAL", "_main_menu"]]
+	var items = [["▶ REANUDAR", "_resume"], ["🔄 REINICIAR", "_restart"], ["💾 GUARDAR", "_save"], ["🏠 MENU PRINCIPAL", "_main_menu"]]
 	for i in range(items.size()):
 		var b = Button.new()
 		b.text = items[i][0]; b.position = Vector2(490, 220 + i * 60); b.size = Vector2(300, 45)
@@ -344,10 +431,9 @@ func _do_save(slot):
 	for e in entities: data["entities"].append({"type": e["type"], "x": e["pos"].x, "y": e["pos"].y, "hp": e["hp"]})
 	for b in buildings: data["buildings"].append({"type": b["type"], "x": b["pos"].x, "y": b["pos"].y, "hp": b["hp"]})
 	var f = FileAccess.open("user://save_" + str(slot) + ".json", FileAccess.WRITE)
-	if f: f.store_string(JSON.stringify(data)); f.close(); _notify("Guardado en slot " + str(slot + 1))
+	if f: f.store_string(JSON.stringify(data)); f.close(); _notify("💾 Guardado en slot " + str(slot + 1))
 
-func _main_menu():
-	get_tree().change_scene_to_file("res://scenes/ModeSelect.tscn")
+func _main_menu(): get_tree().change_scene_to_file("res://scenes/ModeSelect.tscn")
 
 func _notify(txt):
 	var n = Label.new()
