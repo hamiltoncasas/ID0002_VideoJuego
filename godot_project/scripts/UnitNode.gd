@@ -31,8 +31,6 @@ var selection_ring: ColorRect
 var collision_area: Area2D
 var col_shape: CollisionShape2D
 
-@onready var unit_root = $UnitRoot
-
 func _ready():
 	_build_character()
 	_update_appearance()

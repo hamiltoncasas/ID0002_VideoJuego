@@ -51,11 +51,6 @@ func _decorate_terrain():
 	]
 	for i in range(3): bgs[i].color = cs[i]
 	
-	# Divider lines (center line per lane)
-	for name in ["Top", "Mid", "Bot"]:
-		var div = get_node("Lanes/" + name + "/" + name + "Divider")
-		if div: div.color = Color(1, 1, 1, 0.08)
-	
 	# Decorative elements on lanes
 	var lane_nodes = [$Lanes/Top, $Lanes/Mid, $Lanes/Bot]
 	var decorations = ["🌿", "🪨", "🌾"]

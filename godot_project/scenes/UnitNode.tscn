@@ -1,61 +1,6 @@
-[gd_scene load_steps=3 format=3 uid="uid://6q8d431poj6e"]
+[gd_scene load_steps=2 format=3 uid="uid://6q8d431poj6e"]
 
 [ext_resource type="Script" path="res://scripts/UnitNode.gd" id="1"]
 
-[sub_resource type="RectangleShape2D" id="1"]
-size = Vector2(40, 34)
-
 [node name="UnitNode" type="Node2D"]
-
-[node name="CollisionArea" type="Area2D" parent="."]
-collision_layer = 0
-collision_mask = 0
-
-[node name="CollisionShape" type="CollisionShape2D" parent="CollisionArea"]
-shape = SubResource("1")
-
-[node name="Body" type="ColorRect" parent="."]
-layout_mode = 0
-offset_left = -20
-offset_top = -17
-offset_right = 20
-offset_bottom = 17
-color = Color(1, 1, 1)
-
-[node name="Outline" type="ColorRect" parent="."]
-layout_mode = 0
-offset_left = -22
-offset_top = -19
-offset_right = 22
-offset_bottom = 19
-color = Color(0, 0, 0, 0)
-mouse_filter = 2
-
-[node name="HPBarBg" type="ColorRect" parent="."]
-layout_mode = 0
-offset_left = -20
-offset_top = -21
-offset_right = 20
-offset_bottom = -17
-color = Color(0.3, 0, 0, 0.6)
-mouse_filter = 2
-
-[node name="HPBar" type="ColorRect" parent="."]
-layout_mode = 0
-offset_left = -20
-offset_top = -21
-offset_right = 20
-offset_bottom = -17
-color = Color(0, 0.8, 0, 0.8)
-mouse_filter = 2
-
-[node name="ClassIcon" type="Label" parent="."]
-layout_mode = 0
-offset_left = -10
-offset_top = -8
-offset_right = 10
-offset_bottom = 8
-theme_override_font_sizes/font_size = 10
-horizontal_alignment = 1
-vertical_alignment = 1
-text = ""
+script = ExtResource("1")
