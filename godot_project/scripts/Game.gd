@@ -263,8 +263,10 @@ func _input(event):
 	if event is InputEventKey:
 		var p=event.pressed
 		match event.keycode:
-			KEY_A,KEY_LEFT: key_left=p; KEY_D,KEY_RIGHT: key_right=p
-			KEY_W,KEY_UP: key_up=p; KEY_S,KEY_DOWN: key_down=p
+			KEY_A, KEY_LEFT: key_left=p
+			KEY_D, KEY_RIGHT: key_right=p
+			KEY_W, KEY_UP: key_up=p
+			KEY_S, KEY_DOWN: key_down=p
 	
 	if placing_building and event is InputEventMouseButton and event.pressed:
 		if event.button_index==MOUSE_BUTTON_RIGHT:
