@@ -1,0 +1,311 @@
+[gd_scene load_steps=2 format=3 uid="uid://c2d6lrwqnuinb"]
+
+[ext_resource type="Script" path="res://scripts/battle_scene.gd" id="1_z12qk"]
+
+[node name="BattleScene" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 0
+offset_top = 0
+offset_right = 1280
+offset_bottom = 720
+script = ExtResource("1_z12qk")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.15, 0.1, 0.05, 1)
+
+[node name="TopBG" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 0
+offset_top = 60
+offset_right = 1280
+offset_bottom = 270
+color = Color(0.2, 0.3, 0.15, 0.3)
+
+[node name="MidBG" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 0
+offset_top = 275
+offset_right = 1280
+offset_bottom = 485
+color = Color(0.25, 0.2, 0.1, 0.3)
+
+[node name="BotBG" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 0
+offset_top = 490
+offset_right = 1280
+offset_bottom = 700
+color = Color(0.15, 0.2, 0.25, 0.3)
+
+[node name="LaneLabels" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 10
+offset_top = 105
+offset_right = 100
+offset_bottom = 130
+theme_override_font_sizes/font_size = 14
+modulate = Color(0.5, 0.8, 0.5, 1)
+text = "TOP"
+
+[node name="LaneLabels2" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 10
+offset_top = 320
+offset_right = 100
+offset_bottom = 345
+theme_override_font_sizes/font_size = 14
+modulate = Color(0.8, 0.7, 0.3, 1)
+text = "MEDIO"
+
+[node name="LaneLabels3" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 10
+offset_top = 535
+offset_right = 100
+offset_bottom = 560
+theme_override_font_sizes/font_size = 14
+modulate = Color(0.5, 0.5, 0.8, 1)
+text = "BOT"
+
+[node name="HUD" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 0
+offset_top = 0
+offset_right = 1280
+offset_bottom = 55
+color = Color(0, 0, 0, 0.7)
+
+[node name="GoldLabel" type="Label" parent="HUD"]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 20
+offset_top = 10
+offset_right = 200
+offset_bottom = 45
+theme_override_font_sizes/font_size = 20
+modulate = Color(1, 0.8, 0, 1)
+text = "🪙 Oro: 200"
+
+[node name="WaveLabel" type="Label" parent="HUD"]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 540
+offset_top = 10
+offset_right = 740
+offset_bottom = 45
+theme_override_font_sizes/font_size = 20
+modulate = Color(1, 1, 1, 1)
+text = "⚔️ OLEADA 1"
+
+[node name="FoodLabel" type="Label" parent="HUD"]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 200
+offset_top = 10
+offset_right = 380
+offset_bottom = 45
+theme_override_font_sizes/font_size = 20
+modulate = Color(0.5, 0.8, 0.3, 1)
+text = "🌾 Comida: 100"
+
+[node name="StatusLabel" type="Label" parent="HUD"]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 1000
+offset_top = 10
+offset_right = 1260
+offset_bottom = 45
+theme_override_font_sizes/font_size = 16
+modulate = Color(0.5, 0.8, 1, 1)
+text = "PREPARACIÓN..."
+
+[node name="CastleLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 1130
+offset_top = 62
+offset_right = 1270
+offset_bottom = 695
+theme_override_font_sizes/font_size = 24
+horizontal_alignment = 1
+vertical_alignment = 2
+modulate = Color(0.8, 0.3, 0.3, 1)
+text = "🏰"
+
+[node name="PlayerCastleLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 10
+offset_top = 62
+offset_right = 150
+offset_bottom = 695
+theme_override_font_sizes/font_size = 24
+horizontal_alignment = 1
+vertical_alignment = 2
+modulate = Color(0.3, 0.8, 0.3, 1)
+text = "🏰"
+
+[node name="HeroLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 200
+offset_top = 300
+offset_right = 350
+offset_bottom = 450
+theme_override_font_sizes/font_size = 28
+horizontal_alignment = 1
+vertical_alignment = 1
+modulate = Color(0.3, 0.9, 0.3, 1)
+text = "🦸"
+
+[node name="HeroBg" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 200
+offset_top = 420
+offset_right = 350
+offset_bottom = 445
+color = Color(0, 0.5, 0, 0.5)
+
+[node name="HeroHP" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 200
+offset_top = 422
+offset_right = 350
+offset_bottom = 443
+theme_override_font_sizes/font_size = 10
+horizontal_alignment = 1
+text = "HP: 900/900"
+
+[node name="EnemyUnits" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 600
+offset_top = 105
+offset_right = 1100
+offset_bottom = 130
+theme_override_font_sizes/font_size = 16
+modulate = Color(1, 0.3, 0.3, 1)
+text = "⚔️ Guerrero  ⚔️ Guerrero  ⚔️ Guerrero"
+
+[node name="EnemyUnits2" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 600
+offset_top = 320
+offset_right = 1100
+offset_bottom = 345
+theme_override_font_sizes/font_size = 16
+modulate = Color(1, 0.3, 0.3, 1)
+text = "⚔️ Arquero  ⚔️ Arquero  ⚔️ Arquero"
+
+[node name="EnemyUnits3" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 600
+offset_top = 535
+offset_right = 1100
+offset_bottom = 560
+theme_override_font_sizes/font_size = 16
+modulate = Color(1, 0.3, 0.3, 1)
+text = "⚔️ Jinete  ⚔️ Jinete"
+
+[node name="Divider" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 640
+offset_top = 55
+offset_right = 645
+offset_bottom = 700
+color = Color(1, 1, 1, 0.2)
+
+[node name="YourUnits" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 155
+offset_top = 105
+offset_right = 300
+offset_bottom = 130
+theme_override_font_sizes/font_size = 12
+modulate = Color(0.3, 1, 0.3, 1)
+text = "🔰 (vacío)"
+
+[node name="YourUnits2" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 155
+offset_top = 535
+offset_right = 300
+offset_bottom = 560
+theme_override_font_sizes/font_size = 12
+modulate = Color(0.3, 1, 0.3, 1)
+text = "🔰 (vacío)"
+
+[node name="HPBarEnemy" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 600
+offset_top = 132
+offset_right = 900
+offset_bottom = 140
+color = Color(0.8, 0.2, 0.2, 0.8)
+
+[node name="HPBarEnemy2" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 600
+offset_top = 347
+offset_right = 900
+offset_bottom = 355
+color = Color(0.8, 0.2, 0.2, 0.8)
+
+[node name="HPBarEnemy3" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 600
+offset_top = 562
+offset_right = 900
+offset_bottom = 570
+color = Color(0.8, 0.2, 0.2, 0.8)
+
+[node name="CastleHP" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 1130
+offset_top = 697
+offset_right = 1270
+offset_bottom = 710
+color = Color(0.8, 0.2, 0.2, 0.6)
+
+[node name="CastleHPPlayer" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 10
+offset_top = 697
+offset_right = 150
+offset_bottom = 710
+color = Color(0.2, 0.8, 0.2, 0.6)
+
+[node name="Commands" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 10
+offset_top = 700
+offset_right = 1280
+offset_bottom = 720
+theme_override_font_sizes/font_size = 10
+modulate = Color(0.5, 0.5, 0.5, 1)
+text = "[1-4] Invocar unidades  [ESPACIO] Pausa"

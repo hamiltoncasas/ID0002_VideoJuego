@@ -1,0 +1,22 @@
+; Engine configuration for Magic Rush: Legado Muisca
+; Godot 4.3
+
+config_version=5
+
+[application]
+config/name="Legado Muisca"
+config/description="Un juego de estrategia con temática Muisca - 3 carriles, héroes y batallas"
+run/main_scene="res://scenes/main_menu.tscn"
+config/icon="res://assets/icon.png"
+boot_splash/bg_color=Color(0.1, 0.05, 0.15, 1)
+
+[display]
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/size/mode=0
+window/size/always_on_top=false
+window/dpi/allow_hidpi=true
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

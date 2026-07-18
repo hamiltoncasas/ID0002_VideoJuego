@@ -85,7 +85,10 @@ public class WaveSpawner
 
         // Generar unidades enemigas según la oleada
         var unitCount = Math.Min(3 + waveNumber / 2, 12);
-        var lanes = new[] { LanePosition.Top, LanePosition.Mid, LanePosition.Bot };
+        // En oleadas tempranas, todos los enemigos vienen al carril central
+        // (así el héroe puede enfrentarlos sin units de soporte)
+        var targetLane = waveNumber <= 3 ? LanePosition.Mid : LanePosition.Mid;
+        var lanes = new[] { LanePosition.Mid, LanePosition.Mid, LanePosition.Bot };
 
         for (int i = 0; i < unitCount; i++)
         {
@@ -102,7 +105,7 @@ public class WaveSpawner
             );
             unit.Level = level;
 
-            var lane = lanes[i % 3];
+            var lane = waveNumber <= 3 ? LanePosition.Mid : lanes[i % 3];
             unit.FormationRow = FormationRow.Front;
             team.AddUnit(unit, lane);
         }

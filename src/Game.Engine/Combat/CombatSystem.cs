@@ -12,6 +12,7 @@ public class CombatSystem
     private readonly EventBus _eventBus;
     private readonly DamageCalculator _damageCalc;
     private readonly TargetSelector _targetSelector;
+    private readonly Dictionary<string, double> _attackCooldowns = new();
 
     public CombatSystem(EventBus eventBus)
     {
@@ -28,32 +29,34 @@ public class CombatSystem
     {
         if (!playerEntities.Any() || !enemyEntities.Any()) return;
 
-        // Procesar ataques del jugador → enemigos
-        foreach (var attacker in playerEntities.Where(e => e.Stats.IsAlive))
-        {
-            var target = _targetSelector.SelectTarget(attacker, enemyEntities);
-            if (target == null) continue;
-
-            TryAttack(attacker, target, deltaSeconds);
-        }
-
-        // Procesar ataques de enemigos → jugador
-        foreach (var attacker in enemyEntities.Where(e => e.Stats.IsAlive))
-        {
-            var target = _targetSelector.SelectTarget(attacker, playerEntities);
-            if (target == null) continue;
-
-            TryAttack(attacker, target, deltaSeconds);
-        }
+        ProcessAttacks(playerEntities.Where(e => e.Stats.IsAlive), enemyEntities, deltaSeconds);
+        ProcessAttacks(enemyEntities.Where(e => e.Stats.IsAlive), playerEntities, deltaSeconds);
     }
 
-    private void TryAttack(Entity attacker, Entity target, double deltaSeconds)
+    private void ProcessAttacks(IEnumerable<Entity> attackers, List<Entity> targets, double deltaSeconds)
     {
-        // Ataque automático basado en attack speed
-        var attackInterval = 1.0 / Math.Max(attacker.Stats.AttackSpeed, 0.01);
-        attacker.Stats.Range -= deltaSeconds; // hack temporal para cooldown — esto se refactoriza
-        // Nota: En una versión real el cooldown de ataque se maneja con un campo separado
-        _damageCalc.CurrentTime += deltaSeconds;
+        foreach (var attacker in attackers)
+        {
+            // Inicializar cooldown si no existe
+            if (!_attackCooldowns.ContainsKey(attacker.Id))
+                _attackCooldowns[attacker.Id] = 0;
+
+            // Reducir cooldown
+            _attackCooldowns[attacker.Id] -= deltaSeconds;
+
+            // Si el cooldown llegó a 0, atacar
+            if (_attackCooldowns[attacker.Id] <= 0)
+            {
+                var target = _targetSelector.SelectTarget(attacker, targets);
+                if (target == null) continue;
+
+                DealDamage(attacker, target);
+
+                // Resetear cooldown basado en attack speed
+                var attackInterval = 1.0 / Math.Max(attacker.Stats.AttackSpeed, 0.1);
+                _attackCooldowns[attacker.Id] = attackInterval;
+            }
+        }
     }
 
     /// <summary>
@@ -78,4 +81,9 @@ public class CombatSystem
         _eventBus.Publish(new DamageDealtEvent(result));
         return result;
     }
+
+    /// <summary>
+    /// Limpia los cooldowns (para nueva batalla).
+    /// </summary>
+    public void ResetCooldowns() => _attackCooldowns.Clear();
 }
