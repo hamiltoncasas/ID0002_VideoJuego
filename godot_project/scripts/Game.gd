@@ -2,8 +2,6 @@ extends Control
 
 # ─── WORLD ───
 const WORLD_W = 4000; const WORLD_H = 4000
-var cam = Vector2(640, 360)
-var cam_target = Vector2(640, 360)
 var cam_speed = 300.0
 var zoom_level = 1.0
 var zoom_target = 1.0
@@ -23,6 +21,14 @@ var game_res = {"gold": 200, "stone": 100, "food": 150, "wood": 150, "copper": 0
 
 var rng = RandomNumberGenerator.new()
 var hero_data = {}
+
+# Camera tracking
+var cam = Vector2(640, 360)
+var cam_target = Vector2(640, 360)
+var key_left = false
+var key_right = false
+var key_up = false
+var key_down = false
 # Isometric tile dimensions (small for playable area)
 
 
@@ -382,18 +388,13 @@ func _process(delta):
 	
 	# ── Camera ──
 	var mv = Vector2()
-	var kb = false  # track if keyboard is used
-	if Input.is_key_pressed(KEY_W): mv.y -= 1; kb = true
-	if Input.is_key_pressed(KEY_S): mv.y += 1; kb = true
-	if Input.is_key_pressed(KEY_A): mv.x -= 1; kb = true
-	if Input.is_key_pressed(KEY_D): mv.x += 1; kb = true
-	if Input.is_key_pressed(KEY_UP): mv.y -= 1; kb = true
-	if Input.is_key_pressed(KEY_DOWN): mv.y += 1; kb = true
-	if Input.is_key_pressed(KEY_LEFT): mv.x -= 1; kb = true
-	if Input.is_key_pressed(KEY_RIGHT): mv.x += 1; kb = true
+	if key_left: mv.x -= 1
+	if key_right: mv.x += 1
+	if key_up: mv.y -= 1
+	if key_down: mv.y += 1
 	
 	# Edge scroll only when not using keyboard
-	if not kb:
+	if not (key_left or key_right or key_up or key_down):
 		var ms = get_global_mouse_position()
 		if ms.x < 15: mv.x -= 1
 		if ms.x > 1265: mv.x += 1
@@ -689,6 +690,15 @@ func _screen_to_world(screen_pos: Vector2) -> Vector2:
 
 func _input(event):
 	if show_menu: return
+	
+	# Track keyboard for camera movement
+	if event is InputEventKey:
+		var pressed = event.pressed
+		match event.keycode:
+			KEY_A, KEY_LEFT: key_left = pressed
+			KEY_D, KEY_RIGHT: key_right = pressed
+			KEY_W, KEY_UP: key_up = pressed
+			KEY_S, KEY_DOWN: key_down = pressed
 	
 	# Building placement mode (checked FIRST)
 	if placing_building and event is InputEventMouseButton and event.pressed:
