@@ -2,6 +2,15 @@ extends Control
 
 func _ready():
 	$Bg.color = Color(0.06, 0.03, 0.1, 1)
+	
+	var title = Label.new()
+	title.text = "SELECCIONA TU HEROE"
+	title.add_theme_font_size_override("font_size", 28)
+	title.position = Vector2(200, 30); title.size = Vector2(880, 50)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.modulate = Color(1, 0.85, 0.3)
+	add_child(title)
+	
 	var heroes = Globals.heroes
 	var cw = 220; var ch = 340; var gap = 20
 	var tw = heroes.size() * cw + (heroes.size() - 1) * gap
@@ -77,7 +86,10 @@ func _ready():
 	add_child(play); play.pressed.connect(_start)
 
 func _rc(r):
-	match r: "Comun": return Color(0.7, 0.7, 0.7); "Raro": return Color(0.3, 0.5, 1.0); "Epico": return Color(0.8, 0.2, 1.0)
+	match r:
+		"Comun": return Color(0.7, 0.7, 0.7)
+		"Raro": return Color(0.3, 0.5, 1.0)
+		"Epico": return Color(0.8, 0.2, 1.0)
 	return Color.WHITE
 
 func _select(idx):

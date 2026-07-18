@@ -158,44 +158,14 @@ func _spawn_units():
 	_make_entity("cavalry", cp + Vector2(100, 100), "🐎", Color(0.8, 0.5, 0.2), 400, 48)
 
 func _make_entity(type, pos, icon, color, hp, atk):
-	var c = Node2D.new(); c.position = pos; ents_node.add_child(c)
-	
-	# Shadow
-	var shad = ColorRect.new()
-	shad.size = Vector2(16, 4); shad.position = Vector2(-8, 10)
-	shad.color = Color(0, 0, 0, 0.15); shad.mouse_filter = Control.MOUSE_FILTER_IGNORE; c.add_child(shad)
-	
-	# Body
-	var body = ColorRect.new()
-	body.size = Vector2(18, 22); body.position = Vector2(-9, -11)
-	body.color = color; body.mouse_filter = Control.MOUSE_FILTER_IGNORE; body.name = "body"; c.add_child(body)
-	
-	# HP bar bg
-	var hb = ColorRect.new()
-	hb.size = Vector2(26, 4); hb.position = Vector2(-13, -17)
-	hb.color = Color(0.15, 0.04, 0.04, 0.7); hb.mouse_filter = Control.MOUSE_FILTER_IGNORE; hb.name = "hp_bg"; c.add_child(hb)
-	
-	# HP bar fill
-	var hf = ColorRect.new()
-	hf.size = Vector2(26, 4); hf.position = Vector2(-13, -17)
-	hf.color = Color(0.2, 0.85, 0.2, 0.95); hf.mouse_filter = Control.MOUSE_FILTER_IGNORE; hf.name = "hp_fill"; c.add_child(hf)
-	
-	# HP text
-	var ht = Label.new()
-	ht.name = "hp_txt"; ht.add_theme_font_size_override("font_size", 7)
-	ht.position = Vector2(-13, -30); ht.size = Vector2(26, 10)
-	ht.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; ht.mouse_filter = Control.MOUSE_FILTER_IGNORE; c.add_child(ht)
-	
-	# Icon
-	var lbl = Label.new()
-	lbl.text = icon; lbl.add_theme_font_size_override("font_size", 18)
-	lbl.position = Vector2(-9, -10); lbl.size = Vector2(28, 28)
-	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE; c.add_child(lbl)
-	
-	# Selection ring
-	var sel = ColorRect.new()
-	sel.size = Vector2(32, 36); sel.position = Vector2(-16, -18)
-	sel.color = Color(0, 0, 0, 0); sel.mouse_filter = Control.MOUSE_FILTER_IGNORE; sel.name = "sel"; c.add_child(sel)
+	var ent_renderer = preload("res://scenes/EntityRenderer.tscn").instantiate()
+	ent_renderer.position = pos
+	ent_renderer.entity_type = type
+	ent_renderer.entity_color = color
+	ent_renderer.hp = hp
+	ent_renderer.max_hp = hp
+	ent_renderer.is_hero = (type == "hero")
+	ents_node.add_child(ent_renderer)
 	
 	# Area2D for clicks
 	var area = Area2D.new()
@@ -203,10 +173,10 @@ func _make_entity(type, pos, icon, color, hp, atk):
 	shape.size = Vector2(32, 36)
 	area.collision_layer = 0; area.collision_mask = 0
 	var col = CollisionShape2D.new(); col.shape = shape; area.add_child(col)
-	c.add_child(area)
-	var data = {"type": type, "node": c, "pos": pos, "target_pos": pos, "hp": hp, "max_hp": hp, "atk": atk, "moving": false, "task": "idle", "gather_target": null, "anim_time": rng.randf() * 100, "sel": sel, "hp_fill": hf, "hp_txt": ht, "label": lbl, "body": body, "area": area}
+	ent_renderer.add_child(area)
+	
+	var data = {"type": type, "node": ent_renderer, "pos": pos, "target_pos": pos, "hp": hp, "max_hp": hp, "atk": atk, "moving": false, "task": "idle", "gather_target": null, "anim_time": rng.randf() * 100, "renderer": ent_renderer, "area": area}
 	entities.append(data)
-	# Store the entity index in the area for click detection
 	var ent_idx = entities.size() - 1
 	area.input_event.connect(func(_vp, event, _si):
 		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -328,12 +298,14 @@ func _process(delta):
 	for e in entities:
 		if not is_instance_valid(e["node"]): continue
 		e["anim_time"] += delta
-		var hp_pct = float(e["hp"]) / max(e["max_hp"], 1) * 100
-		
-		# HP bar
-		var hf = e["hp_fill"]; var ht = e["hp_txt"]
-		if hf: hf.size.x = 26 * (e["hp"] / max(e["max_hp"], 1))
-		if ht: ht.text = str(ceil(hp_pct)) + "%"
+			var r = e["renderer"]
+		if r:
+			r.anim_time = e["anim_time"]
+			r.hp = e["hp"]
+			r.max_hp = e["max_hp"]
+			r.selected = e.get("sel", false)
+			r.is_moving = e["moving"]
+			r.queue_redraw()
 		
 		if e["hp"] <= 0:
 			_destroy_entity(e)
@@ -366,9 +338,7 @@ func _process(delta):
 				e["target_pos"] = e["pos"] + Vector2(rng.randf() * 500 - 250, rng.randf() * 500 - 250)
 				e["moving"] = true
 		
-		# Selection pulse
-		var pulse = (0.15 + sin(e["anim_time"] * 3) * 0.1) if e.get("sel", false) else 0.0
-		e["sel"].color = Color(1, 1, 0, pulse)
+		# Selection is handled by the renderer
 	
 	# ── Buildings HP ──
 	for b in buildings:
@@ -434,9 +404,13 @@ func _destroy_entity(e):
 # ═══════════════════════════════════════════════
 func _select_entity(e):
 	if e["type"] == "villager" or e["type"] == "hero" or e["type"] == "artisan" or e["type"] in ["warrior", "archer", "cavalry"]:
-		for oe in entities: oe["sel"] = false
+		for oe in entities: 
+			oe["sel"] = false
+			if oe.get("renderer"): oe["renderer"].selected = false
 		selected.clear()
-		e["sel"] = true; selected.append(e); _show_info(e)
+		e["sel"] = true
+		if e.get("renderer"): e["renderer"].selected = true
+		selected.append(e); _show_info(e)
 
 func _input(event):
 	if show_menu: return
