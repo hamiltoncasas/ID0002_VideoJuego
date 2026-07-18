@@ -23,6 +23,18 @@ var game_res = {"gold": 200, "stone": 100, "food": 150, "wood": 150, "copper": 0
 
 var rng = RandomNumberGenerator.new()
 var hero_data = {}
+func _cart_to_iso(cart: Vector2) -> Vector2:
+	return Vector2((cart.x - cart.y) * 32, (cart.x + cart.y) * 16)
+
+func _iso_to_cart(iso: Vector2) -> Vector2:
+	var cx = iso.x / 32 + iso.y / 16
+	var cy = iso.y / 16 - iso.x / 32
+	return Vector2(cx / 2, cy / 2)
+
+func _iso_depth(cart: Vector2) -> float:
+	# Normalized depth sorting (0-100 range)
+	return fmod(cart.x + cart.y, 100)
+
 
 func _ready():
 	hero_data = Globals.get_hero(Globals.selected_hero_id)
@@ -208,6 +220,8 @@ func _make_building(type, pos):
 	bnode.add_child(hp_txt)
 	
 	buildings.append({"type": type, "node": bnode, "pos": pos, "hp": max_hp.get(type, 1000), "max_hp": max_hp.get(type, 1000)})
+	bnode.position = _cart_to_iso(pos)
+	bnode.z_index = _iso_depth(pos)
 
 # ═══════════════════════════════════════════════
 #  UNITS
@@ -242,6 +256,8 @@ func _make_enemy(type, pos, color, hp, atk):
 	
 	var data = {"type": type, "node": ent, "pos": pos, "target_pos": pos, "hp": hp, "max_hp": hp, "atk": atk, "moving": false, "task": "idle", "anim_time": rng.randf() * 100, "renderer": ent}
 	enemies.append(data)
+	ent.position = _cart_to_iso(pos)
+	ent.z_index = _iso_depth(pos)
 
 func _make_entity(type, pos, icon, color, hp, atk):
 	var ent_renderer = preload("res://scenes/EntityRenderer.tscn").instantiate()
@@ -264,6 +280,8 @@ func _make_entity(type, pos, icon, color, hp, atk):
 	
 	var data = {"type": type, "node": ent_renderer, "pos": pos, "target_pos": pos, "hp": hp, "max_hp": hp, "atk": atk, "moving": false, "task": "idle", "gather_target": null, "anim_time": rng.randf() * 100, "renderer": ent_renderer, "hp_label": hp_label}
 	entities.append(data)
+	ent_renderer.position = _cart_to_iso(pos)
+	ent_renderer.z_index = _iso_depth(pos)
 
 # ═══════════════════════════════════════════════
 #  HUD
@@ -402,7 +420,8 @@ func _process(delta):
 	cam = cam.lerp(cam_target, delta * 5.0)
 	zoom_level = lerp(zoom_level, zoom_target, delta * 5.0)
 	world.scale = Vector2(zoom_level, zoom_level)
-	world.position = -cam + Vector2(640 / zoom_level, 360 / zoom_level)
+	var iso_cam = _cart_to_iso(cam)
+	world.position = -iso_cam + Vector2(640 / zoom_level, 360 / zoom_level)
 	
 	# Zoom indicator
 	var zi_label = ui.get_node_or_null("ZoomIndicator")
@@ -453,7 +472,8 @@ func _process(delta):
 			else:
 				d = d.normalized()
 				e["pos"] += d * 80 * delta
-				e["node"].position = e["pos"]
+				e["node"].position = _cart_to_iso(e["pos"])
+			e["node"].z_index = _iso_depth(e["pos"])
 		
 		# Idle
 		if not e["moving"] and e["task"] == "idle":
@@ -517,7 +537,8 @@ func _process(delta):
 			else:
 				d = d.normalized()
 				en["pos"] += d * 40 * delta
-				en["node"].position = en["pos"]
+				en["node"].position = _cart_to_iso(en["pos"])
+				en["node"].z_index = _iso_depth(en["pos"])
 	
 	# ── Player military attacks ──
 	for e in entities:
@@ -668,7 +689,10 @@ func _select_entity(e):
 		selected.append(e); _show_info(e)
 
 func _screen_to_world(screen_pos: Vector2) -> Vector2:
-	return (screen_pos + cam - Vector2(640.0 / zoom_level, 360.0 / zoom_level)) / zoom_level
+	var zoom_center = Vector2(640.0 / zoom_level, 360.0 / zoom_level)
+	var iso_pos = (screen_pos + cam - zoom_center) / zoom_level
+	var cart = _iso_to_cart(iso_pos)
+	return cart
 
 func _input(event):
 	if show_menu: return

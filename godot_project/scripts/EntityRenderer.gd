@@ -77,9 +77,9 @@ func _draw():
 		draw_rect(Rect2(cx - 14, cy - 14 + bob, 28, 28), Color(1, 1, 0, pulse))
 
 func draw_ellipse(pos, size, color):
-	var pts = []
-	for i in range(12):
-		var a = i * 2 * PI / 12
+	var pts = PackedVector2Array()
+	for i in range(16):
+		var a = i * 2 * PI / 16
 		pts.append(pos + Vector2(cos(a) * size.x, sin(a) * size.y))
 	draw_colored_polygon(pts, color)
 
