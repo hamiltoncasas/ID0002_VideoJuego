@@ -1,7 +1,12 @@
 extends Control
 
 func _ready():
-	$Bg.color = Color(0.06, 0.03, 0.1, 1)
+	# Background
+	var bg = ColorRect.new()
+	bg.name = "Bg"
+	bg.size = Vector2(1280, 720)
+	bg.color = Color(0.06, 0.03, 0.1, 1)
+	add_child(bg)
 	
 	var title = Label.new()
 	title.text = "SELECCIONA TU HEROE"

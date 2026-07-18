@@ -6,11 +6,13 @@ var cam = Vector2(640, 360)
 var cam_target = Vector2(640, 360)
 var cam_speed = 300.0
 var entities = []
+var enemies = []
 var buildings = []
 var res_nodes = []
 var selected = []
 var show_menu = false
 var build_mode = false
+var placing_building = null
 var build_queue = []
 
 var game_res = {"gold": 200, "stone": 100, "food": 150, "wood": 150, "copper": 0, "bronze": 0, "diamond": 0, "leather": 0}
@@ -156,6 +158,26 @@ func _spawn_units():
 	_make_entity("warrior", cp + Vector2(100, -100), "⚔️", Color(0.7, 0.4, 0.2), 300, 35)
 	_make_entity("archer", cp + Vector2(100, 0), "🏹", Color(0.3, 0.6, 0.3), 150, 42)
 	_make_entity("cavalry", cp + Vector2(100, 100), "🐎", Color(0.8, 0.5, 0.2), 400, 48)
+	
+	# Spawn enemies on the right side
+	_spawn_enemies(wave_num=1)
+
+func _spawn_enemies(wave_num):
+	for i in range(3 + wave_num):
+		var pos = Vector2(3500, 500 + rng.randi() % 3000)
+		var hp_val = 200 + wave_num * 50
+		var atk_val = 15 + wave_num * 5
+		_make_enemy("warrior", pos, Color(0.6, 0.15, 0.15), hp_val, atk_val)
+
+func _make_enemy(type, pos, color, hp, atk):
+	var ent = preload("res://scenes/EntityRenderer.tscn").instantiate()
+	ent.position = pos; ent.entity_type = type
+	ent.entity_color = color; ent.hp = hp; ent.max_hp = hp
+	ent.entity_team = "enemy"
+	ents_node.add_child(ent)
+	
+	var data = {"type": type, "node": ent, "pos": pos, "target_pos": pos, "hp": hp, "max_hp": hp, "atk": atk, "moving": false, "task": "idle", "anim_time": rng.randf() * 100, "renderer": ent}
+	enemies.append(data)
 
 func _make_entity(type, pos, icon, color, hp, atk):
 	var ent_renderer = preload("res://scenes/EntityRenderer.tscn").instantiate()
@@ -175,7 +197,16 @@ func _make_entity(type, pos, icon, color, hp, atk):
 	var col = CollisionShape2D.new(); col.shape = shape; area.add_child(col)
 	ent_renderer.add_child(area)
 	
-	var data = {"type": type, "node": ent_renderer, "pos": pos, "target_pos": pos, "hp": hp, "max_hp": hp, "atk": atk, "moving": false, "task": "idle", "gather_target": null, "anim_time": rng.randf() * 100, "renderer": ent_renderer, "area": area}
+	# HP text overlay
+	var hp_label = Label.new()
+	hp_label.name = "HPLabel"
+	hp_label.add_theme_font_size_override("font_size", 7)
+	hp_label.position = Vector2(-15, -30); hp_label.size = Vector2(30, 10)
+	hp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hp_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ent_renderer.add_child(hp_label)
+	
+	var data = {"type": type, "node": ent_renderer, "pos": pos, "target_pos": pos, "hp": hp, "max_hp": hp, "atk": atk, "moving": false, "task": "idle", "gather_target": null, "anim_time": rng.randf() * 100, "renderer": ent_renderer, "area": area, "hp_label": hp_label}
 	entities.append(data)
 	var ent_idx = entities.size() - 1
 	area.input_event.connect(func(_vp, event, _si):
@@ -298,14 +329,20 @@ func _process(delta):
 	for e in entities:
 		if not is_instance_valid(e["node"]): continue
 		e["anim_time"] += delta
-			var r = e["renderer"]
+		var r = e["renderer"]
 		if r:
 			r.anim_time = e["anim_time"]
-			r.hp = e["hp"]
-			r.max_hp = e["max_hp"]
+			r.hp = e["hp"]; r.max_hp = e["max_hp"]
 			r.selected = e.get("sel", false)
 			r.is_moving = e["moving"]
 			r.queue_redraw()
+		
+		# HP percentage text
+		var hl = e.get("hp_label")
+		if hl:
+			var pct = ceil(float(e["hp"]) / max(e["max_hp"], 1) * 100)
+			hl.text = str(pct) + "%"
+			hl.modulate = Color(1, 1, 1) if pct > 50 else (Color(1, 1, 0) if pct > 25 else Color(1, 0.5, 0.5))
 		
 		if e["hp"] <= 0:
 			_destroy_entity(e)
@@ -317,18 +354,18 @@ func _process(delta):
 			var dist = d.length()
 			if dist < 5:
 				e["moving"] = false; e["pos"] = e["target_pos"]
+				# Check if reached a resource for gathering
+				if e["task"] == "gathering" and e["gather_target"]:
+					var res = e["gather_target"]
+					if res["amount"] > 0:
+						_do_gather(e, res)
 			else:
 				d = d.normalized()
 				e["pos"] += d * 80 * delta
 				e["node"].position = e["pos"]
-				var bob = sin(e["anim_time"] * 10) * 1.2
-				e["node"].position.y += bob
 		
 		# Idle
 		if not e["moving"] and e["task"] == "idle":
-			var br = sin(e["anim_time"] * 2) * 0.6
-			e["node"].position.y = e["pos"].y + br
-			
 			if e["type"] == "villager" and rng.randf() < 0.02:
 				_ai_villager(e)
 			elif e["type"] == "artisan" and rng.randf() < 0.01:
@@ -338,7 +375,67 @@ func _process(delta):
 				e["target_pos"] = e["pos"] + Vector2(rng.randf() * 500 - 250, rng.randf() * 500 - 250)
 				e["moving"] = true
 		
-		# Selection is handled by the renderer
+		# ── Military AI ──
+	for e in entities:
+		if not is_instance_valid(e["node"]): continue
+		if e["type"] in ["warrior", "archer", "cavalry", "hero"] and not e["moving"] and e["task"] == "idle":
+			# Find nearest enemy
+			var near = null; var md = 300.0
+			for en in enemies:
+				if not is_instance_valid(en["node"]): continue
+				var d = e["pos"].distance_to(en["pos"])
+				if d < md: md = d; near = en
+			if near:
+				e["target_pos"] = near["pos"]
+				e["moving"] = true
+				e["task"] = "fighting"
+	
+	# ── Enemy AI ──
+	for en in enemies:
+		if not is_instance_valid(en["node"]): continue
+		en["anim_time"] += delta
+		var r = en["renderer"]
+		if r: r.anim_time = en["anim_time"]; r.hp = en["hp"]; r.max_hp = en["max_hp"]; r.queue_redraw()
+		
+		if en["hp"] <= 0:
+			_enemy_death(en); continue
+		
+		# Move toward nearest player entity
+		var near = null; var md = 600.0
+		for e in entities:
+			if not is_instance_valid(e["node"]): continue
+			var d = en["pos"].distance_to(e["pos"])
+			if d < md: md = d; near = e
+		if near and not en["moving"]:
+			en["target_pos"] = near["pos"]
+			en["moving"] = true
+		elif not near:
+			en["target_pos"] = Vector2(400, WORLD_H/2)
+			en["moving"] = true
+		
+		# Combat - deal damage if close to target
+		if near and en["pos"].distance_to(near["pos"]) < 30 and rng.randf() < 0.02:
+			near["hp"] -= en["atk"]
+		
+		# Movement
+		if en["moving"]:
+			var d = en["target_pos"] - en["pos"]
+			var dist = d.length()
+			if dist < 5:
+				en["moving"] = false; en["pos"] = en["target_pos"]
+			else:
+				d = d.normalized()
+				en["pos"] += d * 40 * delta
+				en["node"].position = en["pos"]
+	
+	# ── Player military attacks ──
+	for e in entities:
+		if not is_instance_valid(e["node"]): continue
+		if e["type"] in ["warrior", "archer", "cavalry", "hero"]:
+			for en in enemies:
+				if not is_instance_valid(en["node"]): continue
+				if e["pos"].distance_to(en["pos"]) < 30 and rng.randf() < 0.03:
+					en["hp"] -= e["atk"]
 	
 	# ── Buildings HP ──
 	for b in buildings:
@@ -387,17 +484,57 @@ func _ai_villager(e):
 		e["gather_target"] = nearest
 		e["target_pos"] = nearest["pos"]
 		e["moving"] = true
+	# If nearby, start gathering
+	elif nearest and md < 30:
+		_do_gather(e, nearest)
 	else:
 		e["target_pos"] = Vector2(200 + rng.randf() * 500, WORLD_H/2 - 200 + rng.randf() * 400)
 		e["moving"] = true
 
+func _do_gather(e, res):
+	if res["amount"] <= 0: return
+	res["amount"] -= 1
+	var res_key = res["type"]
+	var rewards = {"tree": "wood", "gold": "gold", "stone": "stone", "deer": "food"}
+	if rewards.has(res_key):
+		game_res[rewards[res_key]] += 2
+	# Gathering particle
+	var p = ColorRect.new()
+	p.size = Vector2(4, 4); p.color = Color(1, 1, 0, 0.7)
+	p.position = e["pos"]; p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ents_node.add_child(p)
+	var t = create_tween(); t.set_parallel(true)
+	t.tween_property(p, "position", e["pos"] + Vector2(0, -20), 0.4)
+	t.tween_property(p, "modulate:a", 0.0, 0.4)
+	t.tween_callback(p.queue_free)
+	
+	if res["amount"] <= 0:
+		res["node"].queue_free()
+		res_nodes.erase(res)
+		e["task"] = "idle"
+		e["gather_target"] = null
+
 func _destroy_entity(e):
 	if e["hp"] <= 0:
-		e["node"].queue_free()
-		entities.erase(e)
-		if e in selected:
-			selected.erase(e)
-			if selected.size() == 0: _hide_info()
+		for i in range(8):
+			var p = ColorRect.new(); p.size = Vector2(4, 4); p.color = Color(1, 0.3, 0.2, 0.8)
+			p.position = e["pos"]; p.mouse_filter = Control.MOUSE_FILTER_IGNORE; ents_node.add_child(p)
+			var t = create_tween(); t.set_parallel(true)
+			t.tween_property(p, "position", e["pos"] + Vector2(randf() * 40 - 20, -randf() * 30 - 10), 0.5)
+			t.tween_property(p, "modulate:a", 0.0, 0.5); t.tween_property(p, "size", Vector2(2, 2), 0.5); t.tween_callback(p.queue_free)
+		e["node"].queue_free(); entities.erase(e)
+		if e in selected: selected.erase(e)
+		if selected.size() == 0: _hide_info()
+
+func _enemy_death(en):
+	for i in range(6):
+		var p = ColorRect.new(); p.size = Vector2(3, 3); p.color = Color(1, 0.2, 0.2, 0.8)
+		p.position = en["pos"]; p.mouse_filter = Control.MOUSE_FILTER_IGNORE; ents_node.add_child(p)
+		var t = create_tween(); t.set_parallel(true)
+		t.tween_property(p, "position", en["pos"] + Vector2(randf() * 30 - 15, -randf() * 20 - 10), 0.4)
+		t.tween_property(p, "modulate:a", 0.0, 0.4); t.tween_callback(p.queue_free)
+	en["node"].queue_free(); enemies.erase(en)
+	game_res["gold"] += 10; game_res["food"] += 5
 
 # ═══════════════════════════════════════════════
 #  SELECTION & INPUT
@@ -415,12 +552,36 @@ func _select_entity(e):
 func _input(event):
 	if show_menu: return
 	
+	# Building placement mode
+	if placing_building and event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_RIGHT:
+			var wp = event.position + cam - Vector2(640, 360)
+			if wp.x >= 50 and wp.x < WORLD_W - 50 and wp.y >= 50 and wp.y < WORLD_H - 50:
+				_confirm_building(placing_building, wp)
+			placing_building = null
+			get_viewport().set_input_as_handled()
+			return
+		elif event.button_index == MOUSE_BUTTON_LEFT:
+			placing_building = null
+			_notify("❌ Construccion cancelada")
+			get_viewport().set_input_as_handled()
+			return
+	
 	# Right-click move
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT and selected.size() > 0:
 		var wp = event.position + cam - Vector2(640, 360)
 		if wp.x >= 0 and wp.x < WORLD_W and wp.y >= 0 and wp.y < WORLD_H:
 			for e in selected:
 				e["target_pos"] = wp; e["moving"] = true; e["task"] = "idle"; e["gather_target"] = null
+
+func _confirm_building(type, pos):
+	var costs = {"wall": {"stone": 50}, "barracks": {"gold": 100, "wood": 100}, "archery": {"gold": 120, "wood": 80, "stone": 50}, "stable": {"gold": 150, "wood": 60, "stone": 30}, "siege": {"gold": 200, "wood": 100, "stone": 100}, "tower_arrow": {"gold": 80, "stone": 100, "wood": 40}}
+	var cost = costs.get(type, {})
+	for r in cost.keys():
+		if game_res.get(r, 0) < cost[r]: _notify("❌ Recursos insuficientes!"); return
+	for r in cost.keys(): game_res[r] -= cost[r]
+	_make_building(type, pos)
+	_notify("✅ " + type.capitalize() + " construido!")
 
 func _show_info(e):
 	var ip = ui.get_node("InfoPanel"); var il = ui.get_node("InfoLabel")
@@ -453,13 +614,9 @@ func _place_building(type):
 	for r in cost.keys():
 		if game_res.get(r, 0) < cost[r]: _notify("❌ Recursos insuficientes!"); return
 	
-	for r in cost.keys(): game_res[r] -= cost[r]
-	
-	# Place near castle
-	var cp = Vector2(400, WORLD_H / 2 - 40)
-	var pos = cp + Vector2(-80 + rng.randf() * 300, -100 + rng.randf() * 200)
-	_make_building(type, pos)
-	_notify("✅ " + type.capitalize() + " construido!")
+	# Enter placement mode
+	placing_building = type
+	_notify("🔨 Click derecho en el mapa para colocar " + type.capitalize())
 
 # ═══════════════════════════════════════════════
 #  MENU
