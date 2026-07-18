@@ -5,6 +5,8 @@ const WORLD_W = 4000; const WORLD_H = 4000
 var cam = Vector2(640, 360)
 var cam_target = Vector2(640, 360)
 var cam_speed = 300.0
+var zoom_level = 1.0
+var zoom_target = 1.0
 var entities = []
 var enemies = []
 var buildings = []
@@ -235,7 +237,15 @@ func _build_hud():
 	var mb = Button.new()
 	mb.name = "MenuBtn"; mb.text = "☰ MENU"
 	mb.position = Vector2(1180, 4); mb.size = Vector2(90, 28)
-	ui.add_child(mb); mb.pressed.connect(_toggle_menu)
+	ui.add_child(mb); 	mb.pressed.connect(_toggle_menu)
+	
+	# Zoom indicator
+	var zi = Label.new()
+	zi.name = "ZoomIndicator"
+	zi.text = "🔍 100%"
+	zi.add_theme_font_size_override("font_size", 10)
+	zi.position = Vector2(1090, 5); zi.size = Vector2(80, 24)
+	zi.mouse_filter = Control.MOUSE_FILTER_IGNORE; ui.add_child(zi)
 	
 	var ip = ColorRect.new()
 	ip.name = "InfoPanel"
@@ -309,14 +319,21 @@ func _process(delta):
 	if ms.y > 710: mv.y += 1
 	
 	if mv.length() > 0:
-		mv = mv.normalized() * cam_speed * delta
+		mv = mv.normalized() * cam_speed * delta * (1.0 / zoom_level)
 		cam_target += mv
-		cam_target.x = clamp(cam_target.x, 320, WORLD_W - 320)
-		cam_target.y = clamp(cam_target.y, 180, WORLD_H - 180)
+		cam_target.x = clamp(cam_target.x, 320 / zoom_level, WORLD_W - 320 / zoom_level)
+		cam_target.y = clamp(cam_target.y, 180 / zoom_level, WORLD_H - 180 / zoom_level)
 	
 	# Smooth camera
 	cam = cam.lerp(cam_target, delta * 5.0)
-	world.position = -cam + Vector2(640, 360)
+	zoom_level = lerp(zoom_level, zoom_target, delta * 5.0)
+	world.scale = Vector2(zoom_level, zoom_level)
+	world.position = -cam + Vector2(640 / zoom_level, 360 / zoom_level)
+	
+	# Zoom indicator
+	var zi_label = ui.get_node_or_null("ZoomIndicator")
+	if zi_label:
+		zi_label.text = "🔍 " + str(int(zoom_level * 100)) + "%"
 	
 	# ── Resource UI ──
 	var rkeys = ["gold", "stone", "food", "wood", "copper", "bronze", "diamond", "leather"]
@@ -563,9 +580,16 @@ func _input(event):
 			return
 		elif event.button_index == MOUSE_BUTTON_LEFT:
 			placing_building = null
-			_notify("❌ Construccion cancelada")
+			_notify("Construccion cancelada")
 			get_viewport().set_input_as_handled()
 			return
+	
+	# Zoom with mouse wheel
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			zoom_target = clamp(zoom_target + 0.1, 0.3, 2.0)
+		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			zoom_target = clamp(zoom_target - 0.1, 0.3, 2.0)
 	
 	# Right-click move
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT and selected.size() > 0:
