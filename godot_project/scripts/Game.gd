@@ -23,17 +23,20 @@ var game_res = {"gold": 200, "stone": 100, "food": 150, "wood": 150, "copper": 0
 
 var rng = RandomNumberGenerator.new()
 var hero_data = {}
+# Isometric tile dimensions (small for playable area)
+const ISO_TW = 4.0
+const ISO_TH = 2.0
+
 func _cart_to_iso(cart: Vector2) -> Vector2:
-	return Vector2((cart.x - cart.y) * 32, (cart.x + cart.y) * 16)
+	return Vector2((cart.x - cart.y) * ISO_TW / 2.0, (cart.x + cart.y) * ISO_TH / 2.0)
 
 func _iso_to_cart(iso: Vector2) -> Vector2:
-	var cx = iso.x / 32 + iso.y / 16
-	var cy = iso.y / 16 - iso.x / 32
-	return Vector2(cx / 2, cy / 2)
+	var cx = iso.x / (ISO_TW / 2.0) + iso.y / (ISO_TH / 2.0)
+	var cy = iso.y / (ISO_TH / 2.0) - iso.x / (ISO_TW / 2.0)
+	return Vector2(cx / 2.0, cy / 2.0)
 
 func _iso_depth(cart: Vector2) -> float:
-	# Normalized depth sorting (0-100 range)
-	return fmod(cart.x + cart.y, 100)
+	return fmod(cart.x + cart.y, 1000)
 
 
 func _ready():
