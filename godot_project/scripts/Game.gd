@@ -645,7 +645,7 @@ func _select_at(wp):
 	_hide_info()
 	
 	# Find nearest entity within click range
-	var nearest = null; var min_dist = 25.0
+	var nearest = null; var min_dist = 40.0
 	for e in entities:
 		if not is_instance_valid(e.get("node")): continue
 		var d = wp.distance_to(e["pos"])
@@ -793,14 +793,6 @@ func _input(event):
 			get_viewport().set_input_as_handled()
 			return
 	
-	# Left-click: select unit by proximity
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		var wp = _screen_to_world(event.position)
-		if wp.x >= 0 and wp.x < WORLD_W and wp.y >= 0 and wp.y < WORLD_H:
-			_select_at(wp)
-			get_viewport().set_input_as_handled()
-			return
-	
 	# Zoom with mouse wheel
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
@@ -812,7 +804,6 @@ func _input(event):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT and selected.size() > 0:
 		var wp = _screen_to_world(event.position)
 		if wp.x >= 0 and wp.x < WORLD_W and wp.y >= 0 and wp.y < WORLD_H:
-			# Check if clicked on a resource (for villagers)
 			var clicked_res = null
 			var clicked_enemy = null
 			for r in res_nodes:
@@ -821,18 +812,22 @@ func _input(event):
 			for en in enemies:
 				if is_instance_valid(en.get("node")) and wp.distance_to(en["pos"]) < 30:
 					clicked_enemy = en; break
-			
 			for e in selected:
-				# Villager on resource → gather
 				if e["type"] == "villager" and clicked_res:
 					e["task"] = "gathering"; e["gather_target"] = clicked_res
 					e["target_pos"] = clicked_res["pos"]; e["moving"] = true
-				# Military on enemy → attack
 				elif e["type"] in ["warrior", "archer", "cavalry", "hero"] and clicked_enemy:
 					e["task"] = "fighting"; e["target_pos"] = clicked_enemy["pos"]; e["moving"] = true
-				# Default: move
 				else:
 					e["target_pos"] = wp; e["moving"] = true; e["task"] = "idle"; e["gather_target"] = null
+
+func _unhandled_input(event):
+	# Left-click selection - fires only if no UI element consumed the event
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		var wp = _screen_to_world(event.position)
+		if wp.x >= 0 and wp.x < WORLD_W and wp.y >= 0 and wp.y < WORLD_H:
+			_select_at(wp)
+			get_viewport().set_input_as_handled()
 
 func _confirm_building(type, pos):
 	var costs = {"wall": {"stone": 10}, "barracks": {"gold": 100, "wood": 100}, "archery": {"gold": 120, "wood": 80, "stone": 50}, "stable": {"gold": 150, "wood": 60, "stone": 30}, "siege": {"gold": 200, "wood": 100, "stone": 100}, "tower_arrow": {"gold": 80, "stone": 100, "wood": 40}}
