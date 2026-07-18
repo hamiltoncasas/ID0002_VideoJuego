@@ -160,7 +160,7 @@ func _spawn_units():
 	_make_entity("cavalry", cp + Vector2(100, 100), "🐎", Color(0.8, 0.5, 0.2), 400, 48)
 	
 	# Spawn enemies on the right side
-	_spawn_enemies(wave_num=1)
+	_spawn_enemies(1)
 
 func _spawn_enemies(wave_num):
 	for i in range(3 + wave_num):
