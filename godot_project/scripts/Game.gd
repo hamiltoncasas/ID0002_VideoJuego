@@ -2,6 +2,8 @@ extends Control
 
 # ─── WORLD ───
 const WORLD_W = 4000; const WORLD_H = 4000
+var cam = Vector2(640, 360)
+var cam_target = Vector2(640, 360)
 var cam_speed = 300.0
 var zoom_level = 1.0
 var zoom_target = 1.0
@@ -21,14 +23,6 @@ var game_res = {"gold": 200, "stone": 100, "food": 150, "wood": 150, "copper": 0
 
 var rng = RandomNumberGenerator.new()
 var hero_data = {}
-
-# Camera tracking
-var cam = Vector2(640, 360)
-var cam_target = Vector2(640, 360)
-var key_left = false
-var key_right = false
-var key_up = false
-var key_down = false
 # Isometric tile dimensions (small for playable area)
 
 
@@ -36,8 +30,6 @@ var key_down = false
 
 func _ready():
 	hero_data = Globals.get_hero(Globals.selected_hero_id)
-	cam = Vector2(400, 1960)
-	cam_target = Vector2(400, 1960)
 	RenderingServer.set_default_clear_color(Color(0.08, 0.18, 0.06))
 	_gen_terrain()
 	_gen_resources()
@@ -51,83 +43,95 @@ func _ready():
 #  TERRAIN
 # ═══════════════════════════════════════════════
 func _gen_terrain():
-	# Sky background
+	# Deep background gradient
 	var sky = ColorRect.new()
 	sky.size = Vector2(WORLD_W, WORLD_H)
-	sky.color = Color(0.08, 0.12, 0.2)
+	sky.color = Color(0.05, 0.08, 0.15, 0.8)
 	sky.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(sky)
 	
-	# Mountains (background silhouette)
-	var mtn_colors = [Color(0.1, 0.08, 0.12, 0.6), Color(0.12, 0.1, 0.14, 0.4), Color(0.15, 0.12, 0.16, 0.3)]
-	for m in range(3):
-		for i in range(20):
-			var mtn = ColorRect.new()
-			var mw = 200 + rng.randi() % 300
-			var mh = 80 + rng.randi() % 120 - m * 30
-			mtn.size = Vector2(mw, mh)
-			mtn.position = Vector2(rng.randi() % (WORLD_W - mw), rng.randi() % 100 + m * 20)
-			mtn.color = mtn_colors[m]
-			mtn.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(mtn)
+	# Ground base
+	var ground = ColorRect.new()
+	ground.size = Vector2(WORLD_W, WORLD_H)
+	ground.color = Color(0.12, 0.25, 0.08)
+	ground.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(ground)
 	
-	# Ground base with 3 shades of green
-	for i in 3:
+	# Grass texture layers
+	for i in 4:
 		var g = ColorRect.new()
 		g.size = Vector2(WORLD_W, WORLD_H)
-		g.color = Color(0.08 + i * 0.04, 0.2 + i * 0.06, 0.05 + i * 0.02, 0.3)
+		g.color = Color(0.15 + i * 0.04, 0.28 + i * 0.03, 0.08 + i * 0.02, 0.2)
 		g.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(g)
 	
-	# Grass patches
-	var grass_shades = [Color(0.15, 0.3, 0.08, 0.15), Color(0.2, 0.35, 0.1, 0.12), Color(0.25, 0.28, 0.12, 0.08)]
-	for i in 60:
+	# Organic terrain patches (circles, not rectangles)
+	var patch_colors = [
+		Color(0.2, 0.35, 0.12, 0.12), Color(0.28, 0.3, 0.15, 0.08),
+		Color(0.15, 0.38, 0.1, 0.1), Color(0.22, 0.28, 0.18, 0.06)]
+	for i in 50:
 		var p = ColorRect.new()
-		p.size = Vector2(30 + rng.randi() % 150, 30 + rng.randi() % 120)
-		p.position = Vector2(rng.randi() % (WORLD_W - 100), rng.randi() % (WORLD_H - 100))
-		p.color = grass_shades[i % grass_shades.size()]
+		var pw = 60 + rng.randi() % 200
+		p.size = Vector2(pw, 50 + rng.randi() % 150)
+		p.position = Vector2(rng.randi() % (WORLD_W - 200), rng.randi() % (WORLD_H - 150))
+		p.color = patch_colors[i % patch_colors.size()]
 		p.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(p)
 	
-	# Dirt paths
+	# Dirt paths (organic)
 	for i in 5:
 		var path = ColorRect.new()
-		path.size = Vector2(20 + rng.randi() % 30, 300 + rng.randi() % 400)
-		path.position = Vector2(rng.randi() % (WORLD_W - 40), rng.randi() % (WORLD_H - 300))
-		path.color = Color(0.28, 0.2, 0.1, 0.12)
+		path.size = Vector2(30 + rng.randi() % 40, 500 + rng.randi() % 400)
+		path.position = Vector2(rng.randi() % (WORLD_W - 60), rng.randi() % (WORLD_H - 500))
+		path.color = Color(0.3, 0.22, 0.12, 0.08)
 		path.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(path)
+		
+		# Path center
+		var pc = ColorRect.new()
+		pc.size = Vector2(path.size.x * 0.5, path.size.y)
+		pc.position = path.position + Vector2(7, 0)
+		pc.color = Color(0.35, 0.25, 0.15, 0.06)
+		pc.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(pc)
 	
-	# River
+	# River through the middle
 	var river = ColorRect.new()
-	river.size = Vector2(50, WORLD_H)
-	river.position = Vector2(WORLD_W * 0.4 - 25, 0)
-	river.color = Color(0.1, 0.22, 0.38, 0.2)
+	river.size = Vector2(60, WORLD_H)
+	river.position = Vector2(WORLD_W * 0.5 - 30, 0)
+	river.color = Color(0.12, 0.28, 0.45, 0.15)
 	river.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(river)
 	
-	# Lake
+	# River edge
+	var re = ColorRect.new()
+	re.size = Vector2(80, WORLD_H)
+	re.position = Vector2(WORLD_W * 0.5 - 40, 0)
+	re.color = Color(0.15, 0.3, 0.4, 0.06)
+	re.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(re)
+	
+	# Lake (larger, more natural)
 	var lake = ColorRect.new()
-	lake.size = Vector2(300, 200); lake.position = Vector2(2400, 850)
-	lake.color = Color(0.1, 0.22, 0.38, 0.35)
+	lake.size = Vector2(400, 300); lake.position = Vector2(2200, 800)
+	lake.color = Color(0.1, 0.25, 0.42, 0.35)
 	lake.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(lake)
-	for i in range(3):
+	# Lake border
+	for i in 3:
 		var lb = ColorRect.new()
-		var s = 15 + i * 12
+		var s = 20 + i * 15
 		lb.size = lake.size + Vector2(s, s)
 		lb.position = lake.position - Vector2(s/2, s/2)
-		lb.color = Color(0.12, 0.25, 0.35, 0.08 - i * 0.02)
+		lb.color = Color(0.15, 0.3, 0.4, 0.08 - i * 0.02)
 		lb.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(lb)
-	
-	# Decorative elements (trees, grass, rocks)
-	var deco_items = ["🌿", "🌱", "🌾", "🍃", "🌻", "🌸", "🪨", "🌲"]
-	for i in 100:
-		var d = Label.new()
-		d.text = deco_items[i % deco_items.size()]
-		d.add_theme_font_size_override("font_size", 6 + rng.randi() % 10)
-		d.position = Vector2(rng.randi() % WORLD_W, rng.randi() % WORLD_H)
-		d.modulate = Color(1, 1, 1, 0.06 + rng.randf() * 0.08)
-		d.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(d)
 	
 	# Fog/mist layer (bottom)
 	var fog = ColorRect.new()
 	fog.size = Vector2(WORLD_W, WORLD_H)
 	fog.color = Color(0.08, 0.12, 0.15, 0.08)
 	fog.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(fog)
+	
+	# Decorative elements - grass tufts, flowers, rocks
+	var deco_items = ["🌿", "🌱", "🌾", "🍃", "🌻", "🌸", "🪨"]
+	for i in 80:
+		var g = Label.new()
+		g.text = deco_items[i % deco_items.size()]
+		g.add_theme_font_size_override("font_size", 6 + rng.randi() % 8)
+		g.position = Vector2(rng.randi() % WORLD_W, rng.randi() % WORLD_H)
+		g.modulate = Color(1, 1, 1, 0.04 + rng.randf() * 0.06)
+		g.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(g)
 
 func _gen_ambient_particles():
 	# Adds floating particles for atmosphere
@@ -236,40 +240,73 @@ func _spawn_enemies(wave_num):
 		_make_enemy("warrior", pos, Color(0.6, 0.15, 0.15), hp_val, atk_val)
 
 func _make_enemy(type, pos, color, hp, atk):
-	var ent = preload("res://scenes/EntityRenderer.tscn").instantiate()
-	ent.position = pos; ent.entity_type = type
-	ent.entity_color = color; ent.hp = hp; ent.max_hp = hp
-	ent.entity_team = "enemy"
-	ents_node.add_child(ent)
+	var ent_node = Node2D.new()
+	ent_node.position = pos
+	ents_node.add_child(ent_node)
 	
-	var data = {"type": type, "node": ent, "pos": pos, "target_pos": pos, "hp": hp, "max_hp": hp, "atk": atk, "moving": false, "task": "idle", "anim_time": rng.randf() * 100, "renderer": ent}
+	var body = ColorRect.new()
+	body.size = Vector2(18, 18); body.position = Vector2(-9, -9)
+	body.color = color; body.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ent_node.add_child(body)
+	
+	var lbl = Label.new()
+	lbl.text = "⚔"; lbl.add_theme_font_size_override("font_size", 14)
+	lbl.position = Vector2(-7, -20); lbl.size = Vector2(28, 28)
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ent_node.add_child(lbl)
+	
+	var data = {"type": type, "node": ent_node, "pos": pos, "target_pos": pos, "hp": hp, "max_hp": hp, "atk": atk, "moving": false, "task": "idle", "anim_time": rng.randf() * 100}
 	enemies.append(data)
-	ent.position = pos
-	ent.z_index = 0
+	ent_node.z_index = 0
 
 func _make_entity(type, pos, icon, color, hp, atk):
-	var ent_renderer = preload("res://scenes/EntityRenderer.tscn").instantiate()
-	ent_renderer.position = pos
-	ent_renderer.entity_type = type
-	ent_renderer.entity_color = color
-	ent_renderer.hp = hp
-	ent_renderer.max_hp = hp
-	ent_renderer.is_hero = (type == "hero")
-	ents_node.add_child(ent_renderer)
+	# Create entity as a Node2D with simple visual
+	var ent_node = Node2D.new()
+	ent_node.position = pos
+	ents_node.add_child(ent_node)
 	
-	# HP text overlay
-	var hp_label = Label.new()
-	hp_label.name = "HPLabel"
-	hp_label.add_theme_font_size_override("font_size", 7)
-	hp_label.position = Vector2(-15, -30); hp_label.size = Vector2(30, 10)
-	hp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hp_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	ent_renderer.add_child(hp_label)
+	# Body circle
+	var body = ColorRect.new()
+	body.size = Vector2(20, 20)
+	body.position = Vector2(-10, -10)
+	body.color = color
+	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ent_node.add_child(body)
 	
-	var data = {"type": type, "node": ent_renderer, "pos": pos, "target_pos": pos, "hp": hp, "max_hp": hp, "atk": atk, "moving": false, "task": "idle", "gather_target": null, "anim_time": rng.randf() * 100, "renderer": ent_renderer, "hp_label": hp_label}
+	# Icon label
+	var lbl = Label.new()
+	lbl.text = icon
+	lbl.add_theme_font_size_override("font_size", 16)
+	lbl.position = Vector2(-8, -22)
+	lbl.size = Vector2(30, 30)
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ent_node.add_child(lbl)
+	
+	# HP bar bg
+	var hb = ColorRect.new()
+	hb.size = Vector2(22, 3); hb.position = Vector2(-11, -26)
+	hb.color = Color(0.2, 0.05, 0.05, 0.6)
+	hb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ent_node.add_child(hb)
+	
+	# HP bar fill
+	var hf = ColorRect.new()
+	hf.size = Vector2(22, 3); hf.position = Vector2(-11, -26)
+	hf.color = Color(0.2, 0.8, 0.2, 0.9)
+	hf.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ent_node.add_child(hf)
+	
+	# HP text
+	var ht = Label.new()
+	ht.add_theme_font_size_override("font_size", 7)
+	ht.position = Vector2(-11, -35); ht.size = Vector2(22, 10)
+	ht.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ht.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ent_node.add_child(ht)
+	
+	var data = {"type": type, "node": ent_node, "pos": pos, "target_pos": pos, "hp": hp, "max_hp": hp, "atk": atk, "moving": false, "task": "idle", "gather_target": null, "anim_time": rng.randf() * 100, "body": body, "hp_fill": hf, "hp_text": ht, "label": lbl}
 	entities.append(data)
-	ent_renderer.position = pos
-	ent_renderer.z_index = 0
+	ent_node.z_index = 0
 
 # ═══════════════════════════════════════════════
 #  HUD
@@ -339,9 +376,9 @@ func _build_hud():
 		act.name = "Act" + str(i)
 		act.position = Vector2(480 + i * 90, 685); act.size = Vector2(80, 30)
 		act.visible = false; ui.add_child(act)
-		# All Act buttons route through _on_act_pressed
-		var act_idx = i
-		act.pressed.connect(func(): _on_act_pressed(act_idx))
+	
+	# Connect Act0 to toggle build menu
+	ui.get_node("Act0").pressed.connect(_toggle_build_menu)
 
 func _build_minimap():
 	var bg = ColorRect.new()
@@ -376,18 +413,20 @@ func _process(delta):
 	
 	# ── Camera ──
 	var mv = Vector2()
-	if key_left: mv.x -= 1
-	if key_right: mv.x += 1
-	if key_up: mv.y -= 1
-	if key_down: mv.y += 1
+	if Input.is_key_pressed(KEY_W): mv.y -= 1
+	if Input.is_key_pressed(KEY_S): mv.y += 1
+	if Input.is_key_pressed(KEY_A): mv.x -= 1
+	if Input.is_key_pressed(KEY_D): mv.x += 1
+	if Input.is_key_pressed(KEY_UP): mv.y -= 1
+	if Input.is_key_pressed(KEY_DOWN): mv.y += 1
+	if Input.is_key_pressed(KEY_LEFT): mv.x -= 1
+	if Input.is_key_pressed(KEY_RIGHT): mv.x += 1
 	
-	# Edge scroll only when not using keyboard
-	if not (key_left or key_right or key_up or key_down):
-		var ms = get_global_mouse_position()
-		if ms.x < 15: mv.x -= 1
-		if ms.x > 1265: mv.x += 1
-		if ms.y < 42: mv.y -= 1
-		if ms.y > 710: mv.y += 1
+	var ms = get_global_mouse_position()
+	if ms.x < 15: mv.x -= 1
+	if ms.x > 1265: mv.x += 1
+	if ms.y < 42: mv.y -= 1
+	if ms.y > 710: mv.y += 1
 	
 	if mv.length() > 0:
 		mv = mv.normalized() * cam_speed * delta * (1.0 / zoom_level)
@@ -424,20 +463,14 @@ func _process(delta):
 	for e in entities:
 		if not is_instance_valid(e["node"]): continue
 		e["anim_time"] += delta
-		var r = e["renderer"]
-		if r:
-			r.anim_time = e["anim_time"]
-			r.hp = e["hp"]; r.max_hp = e["max_hp"]
-			r.selected = e.get("sel", false)
-			r.is_moving = e["moving"]
-			r.queue_redraw()
 		
-		# HP percentage text
-		var hl = e.get("hp_label")
-		if hl:
-			var pct = ceil(float(e["hp"]) / max(e["max_hp"], 1) * 100)
-			hl.text = str(pct) + "%"
-			hl.modulate = Color(1, 1, 1) if pct > 50 else (Color(1, 1, 0) if pct > 25 else Color(1, 0.5, 0.5))
+		# Update HP bar
+		var hp_pct = float(e["hp"]) / max(e["max_hp"], 1)
+		if e.get("hp_fill"):
+			e["hp_fill"].size.x = 22 * hp_pct
+			e["hp_fill"].color = Color(0.2, 0.75, 0.2, 0.9) if hp_pct > 0.5 else (Color(0.8, 0.65, 0.1, 0.9) if hp_pct > 0.25 else Color(0.8, 0.15, 0.1, 0.9))
+		if e.get("hp_text"):
+			e["hp_text"].text = str(ceil(hp_pct * 100)) + "%"
 		
 		if e["hp"] <= 0:
 			_destroy_entity(e)
@@ -490,9 +523,7 @@ func _process(delta):
 	for en in enemies:
 		if not is_instance_valid(en["node"]): continue
 		en["anim_time"] += delta
-		var r = en["renderer"]
-		if r: r.anim_time = en["anim_time"]; r.hp = en["hp"]; r.max_hp = en["max_hp"]; r.queue_redraw()
-		
+				
 		if en["hp"] <= 0:
 			_enemy_death(en); continue
 		
@@ -640,15 +671,13 @@ func _select_at(wp):
 	# Deselect all first
 	for oe in entities: 
 		oe["sel"] = false
-		if oe.get("renderer"): oe["renderer"].selected = false
 	selected.clear()
 	_hide_info()
 	
-	# Find nearest entity within click range
+	# Find nearest entity within click range (using absolute position)
 	var nearest = null; var min_dist = 40.0
 	for e in entities:
 		if not is_instance_valid(e.get("node")): continue
-		# Entity absolute position = local pos + world offset
 		var abs_pos = e["pos"] + world.position
 		var d = wp.distance_to(abs_pos)
 		if d < min_dist: min_dist = d; nearest = e
@@ -661,122 +690,23 @@ func _select_at(wp):
 	for b in buildings:
 		if not is_instance_valid(b.get("node")): continue
 		var d = wp.distance_to(b["pos"])
-		if d < 50:
-			_select_building(b)
+		if d < 40:
+			_notify("🏗️ " + b["type"].capitalize() + " HP: " + str(b["hp"]) + "/" + str(b["max_hp"]))
 			return
 
 func _select_entity(e):
 	if e["type"] == "villager" or e["type"] == "hero" or e["type"] == "artisan" or e["type"] in ["warrior", "archer", "cavalry"]:
 		for oe in entities: 
 			oe["sel"] = false
-			if oe.get("renderer"): oe["renderer"].selected = false
 		selected.clear()
 		e["sel"] = true
-		if e.get("renderer"): e["renderer"].selected = true
 		selected.append(e); _show_info(e)
 
 func _screen_to_world(screen_pos: Vector2) -> Vector2:
 	return (screen_pos + cam - Vector2(640.0 / zoom_level, 360.0 / zoom_level)) / zoom_level
 
-# ─── BUILDING PRODUCTION ───
-var selected_building = null
-var training_queue = {}  # building_index → [unit_type, time_remaining, count]
-
-# Building → trainable units
-var building_units = {
-	"barracks": {"name": "Cuartel", "units": [
-		{"type": "warrior", "name": "Guerrero", "cost": {"gold": 50, "food": 25}, "time": 5.0},
-	]},
-	"archery": {"name": "Arqueria", "units": [
-		{"type": "archer", "name": "Arquero", "cost": {"gold": 80, "food": 15, "wood": 30}, "time": 6.0},
-	]},
-	"stable": {"name": "Caballeriza", "units": [
-		{"type": "cavalry", "name": "Jinete", "cost": {"gold": 120, "food": 40}, "time": 8.0},
-	]},
-	"siege": {"name": "Taller de Asedio", "units": [
-		{"type": "siege_ram", "name": "Ariete", "cost": {"gold": 200, "wood": 150, "stone": 50}, "time": 15.0},
-	]},
-}
-
-func _select_building(b):
-	selected_building = b
-	# Show building info in panel
-	var ip = ui.get_node("InfoPanel"); var il = ui.get_node("InfoLabel")
-	ip.visible = true
-	var type_name = b["type"]
-	var names = {"castle": "🏰 Castillo", "barracks": "⚔️ Cuartel", "archery": "🏹 Arqueria",
-		"stable": "🐎 Caballeriza", "siege": "💣 Taller Asedio", "wall": "🧱 Muralla", "tower_arrow": "🗼 Torre"}
-	il.text = names.get(type_name, type_name) + " | HP: " + str(b["hp"]) + "/" + str(b["max_hp"])
-	
-	# Hide build buttons
-	for i in 6:
-		var btn = ui.get_node("Build" + str(i))
-		if btn: btn.visible = false
-	for i in 3:
-		var act = ui.get_node("Act" + str(i))
-		if act: act.visible = false
-	
-	# Show train buttons
-	if building_units.has(type_name):
-		var bdata = building_units[type_name]
-		for i in 3:
-			var btn = ui.get_node("Act" + str(i))
-			if btn and i < bdata["units"].size():
-				btn.visible = true
-				var u = bdata["units"][i]
-				btn.text = u["name"] + "\n🪙" + str(u["cost"].get("gold",0))
-	
-	# Update info text
-	var it = ui.get_node("InfoText")
-	if it and building_units.has(type_name):
-		it.text = "Selecciona una unidad para entrenar:"
-	elif it:
-		it.text = "Edificio defensivo. Selecciona un aldeano para construir mas."
-
-func _on_train_pressed(unit_idx):
-	if not selected_building: return
-	var type_name = selected_building["type"]
-	if not building_units.has(type_name): return
-	var bdata = building_units[type_name]
-	if unit_idx < 0 or unit_idx >= bdata["units"].size(): return
-	_train_unit(bdata, unit_idx)
-
-func _train_unit(bdata, idx):
-	var u = bdata["units"][idx]
-	# Check costs
-	for r in u["cost"].keys():
-		if game_res.get(r, 0) < u["cost"][r]:
-			_notify("❌ Recursos insuficientes para " + u["name"])
-			return
-	# Spend resources
-	for r in u["cost"].keys():
-		game_res[r] -= u["cost"][r]
-	# Spawn unit near building
-	var b = selected_building
-	if b:
-		var spawn_pos = b["pos"] + Vector2(40 + rng.randi() % 30, -20 + rng.randi() % 40)
-		var defs = Globals.unit_defs
-		var def = defs.get(u["type"], defs["warrior"])
-		_make_entity(u["type"], spawn_pos, "?", def["color"], def["hp"], def["atk"])
-		_notify("✅ " + u["name"] + " entrenado!")
-		# Update resource display
-		var keys = ["gold", "stone", "food", "wood", "copper", "bronze", "diamond", "leather"]
-		var ricons = ["🪙", "🪨", "🌾", "🪵", "🟤", "🔶", "💎", "👜"]
-		for i in range(8):
-			var l = ui.get_node("RC" + str(i))
-			if l: l.text = ricons[i] + " " + keys[i].capitalize() + ": " + str(game_res[keys[i]])
-
 func _input(event):
 	if show_menu: return
-	
-	# Track keyboard for camera movement
-	if event is InputEventKey:
-		var pressed = event.pressed
-		match event.keycode:
-			KEY_A, KEY_LEFT: key_left = pressed
-			KEY_D, KEY_RIGHT: key_right = pressed
-			KEY_W, KEY_UP: key_up = pressed
-			KEY_S, KEY_DOWN: key_down = pressed
 	
 	# Building placement mode (checked FIRST)
 	if placing_building and event is InputEventMouseButton and event.pressed:
@@ -793,6 +723,14 @@ func _input(event):
 			get_viewport().set_input_as_handled()
 			return
 	
+	# Left-click: select unit by proximity
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		var wp = _screen_to_world(event.position)
+		if wp.x >= 0 and wp.x < WORLD_W and wp.y >= 0 and wp.y < WORLD_H:
+			_select_at(wp)
+			get_viewport().set_input_as_handled()
+			return
+	
 	# Zoom with mouse wheel
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
@@ -804,6 +742,7 @@ func _input(event):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT and selected.size() > 0:
 		var wp = _screen_to_world(event.position)
 		if wp.x >= 0 and wp.x < WORLD_W and wp.y >= 0 and wp.y < WORLD_H:
+			# Check if clicked on a resource (for villagers)
 			var clicked_res = null
 			var clicked_enemy = null
 			for r in res_nodes:
@@ -812,25 +751,21 @@ func _input(event):
 			for en in enemies:
 				if is_instance_valid(en.get("node")) and wp.distance_to(en["pos"]) < 30:
 					clicked_enemy = en; break
+			
 			for e in selected:
+				# Villager on resource → gather
 				if e["type"] == "villager" and clicked_res:
 					e["task"] = "gathering"; e["gather_target"] = clicked_res
 					e["target_pos"] = clicked_res["pos"]; e["moving"] = true
+				# Military on enemy → attack
 				elif e["type"] in ["warrior", "archer", "cavalry", "hero"] and clicked_enemy:
 					e["task"] = "fighting"; e["target_pos"] = clicked_enemy["pos"]; e["moving"] = true
+				# Default: move
 				else:
 					e["target_pos"] = wp; e["moving"] = true; e["task"] = "idle"; e["gather_target"] = null
 
-func _unhandled_input(event):
-	# Left-click selection - fires only if no UI element consumed the event
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		var wp = _screen_to_world(event.position)
-		if wp.x >= 0 and wp.x < WORLD_W and wp.y >= 0 and wp.y < WORLD_H:
-			_select_at(wp)
-			get_viewport().set_input_as_handled()
-
 func _confirm_building(type, pos):
-	var costs = {"wall": {"stone": 10}, "barracks": {"gold": 100, "wood": 100}, "archery": {"gold": 120, "wood": 80, "stone": 50}, "stable": {"gold": 150, "wood": 60, "stone": 30}, "siege": {"gold": 200, "wood": 100, "stone": 100}, "tower_arrow": {"gold": 80, "stone": 100, "wood": 40}}
+	var costs = {"wall": {"stone": 50}, "barracks": {"gold": 100, "wood": 100}, "archery": {"gold": 120, "wood": 80, "stone": 50}, "stable": {"gold": 150, "wood": 60, "stone": 30}, "siege": {"gold": 200, "wood": 100, "stone": 100}, "tower_arrow": {"gold": 80, "stone": 100, "wood": 40}}
 	var cost = costs.get(type, {})
 	for r in cost.keys():
 		if game_res.get(r, 0) < cost[r]: _notify("❌ Recursos insuficientes!"); return
@@ -861,17 +796,6 @@ func _show_info(e):
 			act.visible = true
 			act.text = "🏗️ Construir"
 
-func _on_act_pressed(idx):
-	# If a building is selected and has training options
-	if selected_building and building_units.has(selected_building["type"]):
-		var bdata = building_units[selected_building["type"]]
-		if idx >= 0 and idx < bdata["units"].size():
-			_train_unit(bdata, idx)
-		return
-	# If a villager is selected, Act0 = toggle build menu
-	if idx == 0 and selected.size() > 0 and selected[0]["type"] == "villager":
-		_toggle_build_menu()
-
 func _toggle_build_menu():
 	var vis = not ui.get_node("Build0").visible
 	for i in 6:
@@ -886,13 +810,9 @@ func _hide_info():
 	for i in 6:
 		var b = ui.get_node("Build" + str(i))
 		if b: b.visible = false
-	for i in 3:
-		var act = ui.get_node("Act" + str(i))
-		if act: act.visible = false
-	selected_building = null
 
 func _place_building(type):
-	var costs = {"wall": {"stone": 10}, "barracks": {"gold": 100, "wood": 100}, "archery": {"gold": 120, "wood": 80, "stone": 50}, "stable": {"gold": 150, "wood": 60, "stone": 30}, "siege": {"gold": 200, "wood": 100, "stone": 100}, "tower_arrow": {"gold": 80, "stone": 100, "wood": 40}}
+	var costs = {"wall": {"stone": 50}, "barracks": {"gold": 100, "wood": 100}, "archery": {"gold": 120, "wood": 80, "stone": 50}, "stable": {"gold": 150, "wood": 60, "stone": 30}, "siege": {"gold": 200, "wood": 100, "stone": 100}, "tower_arrow": {"gold": 80, "stone": 100, "wood": 40}}
 	
 	var cost = costs.get(type, {})
 	for r in cost.keys():
