@@ -29,6 +29,7 @@ func _ready():
 	RenderingServer.set_default_clear_color(Color(0.08, 0.18, 0.06))
 	_gen_terrain()
 	_gen_resources()
+	_gen_ambient_particles()
 	_gen_buildings()
 	_spawn_units()
 	_build_hud()
@@ -38,65 +39,130 @@ func _ready():
 #  TERRAIN
 # ═══════════════════════════════════════════════
 func _gen_terrain():
-	for i in 3:
-		var l = ColorRect.new()
-		l.size = Vector2(WORLD_W, WORLD_H)
-		l.color = Color(0.1 + i * 0.03, 0.25 + i * 0.04, 0.07 + i * 0.02, 0.35)
-		l.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(l)
+	# Deep background gradient
+	var sky = ColorRect.new()
+	sky.size = Vector2(WORLD_W, WORLD_H)
+	sky.color = Color(0.05, 0.08, 0.15, 0.8)
+	sky.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(sky)
 	
-	for x in range(0, WORLD_W, 64):
-		var l = ColorRect.new()
-		l.size = Vector2(1, WORLD_H); l.position = Vector2(x, 0)
-		l.color = Color(0.06, 0.18, 0.05, 0.08); l.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(l)
-	for y in range(0, WORLD_H, 64):
-		var l = ColorRect.new()
-		l.size = Vector2(WORLD_W, 1); l.position = Vector2(0, y)
-		l.color = Color(0.06, 0.18, 0.05, 0.08); l.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(l)
+	# Ground base
+	var ground = ColorRect.new()
+	ground.size = Vector2(WORLD_W, WORLD_H)
+	ground.color = Color(0.12, 0.25, 0.08)
+	ground.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(ground)
 	
-	for i in 35:
-		var p = ColorRect.new()
-		p.size = Vector2(50 + rng.randi() % 180, 40 + rng.randi() % 140)
-		p.position = Vector2(rng.randi() % (WORLD_W - 200), rng.randi() % (WORLD_H - 150))
-		p.color = Color(0.18, 0.32, 0.1, 0.1); p.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(p)
-	
+	# Grass texture layers
 	for i in 4:
-		var path = ColorRect.new()
-		path.size = Vector2(30 + rng.randi() % 50, 600 + rng.randi() % 500)
-		path.position = Vector2(rng.randi() % (WORLD_W - 80), rng.randi() % (WORLD_H - 500))
-		path.color = Color(0.28, 0.2, 0.1, 0.1); path.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(path)
-	
-	var lake = ColorRect.new()
-	lake.size = Vector2(350, 250); lake.position = Vector2(2800, 1100)
-	lake.color = Color(0.12, 0.3, 0.5, 0.4); lake.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(lake)
-	
-	var lb = ColorRect.new()
-	lb.size = Vector2(380, 280); lb.position = Vector2(2785, 1085)
-	lb.color = Color(0.18, 0.35, 0.45, 0.12); lb.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(lb)
-	
-	for i in 50:
-		var g = Label.new()
-		g.text = ["🌿", "🌱", "🌾", "🍃"][i % 4]
-		g.add_theme_font_size_override("font_size", 6 + rng.randi() % 6)
-		g.position = Vector2(rng.randi() % WORLD_W, rng.randi() % WORLD_H)
-		g.modulate = Color(1, 1, 1, 0.06 + rng.randf() * 0.06)
+		var g = ColorRect.new()
+		g.size = Vector2(WORLD_W, WORLD_H)
+		g.color = Color(0.15 + i * 0.04, 0.28 + i * 0.03, 0.08 + i * 0.02, 0.2)
 		g.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(g)
+	
+	# Organic terrain patches (circles, not rectangles)
+	var patch_colors = [
+		Color(0.2, 0.35, 0.12, 0.12), Color(0.28, 0.3, 0.15, 0.08),
+		Color(0.15, 0.38, 0.1, 0.1), Color(0.22, 0.28, 0.18, 0.06)]
+	for i in 50:
+		var p = ColorRect.new()
+		var pw = 60 + rng.randi() % 200
+		p.size = Vector2(pw, 50 + rng.randi() % 150)
+		p.position = Vector2(rng.randi() % (WORLD_W - 200), rng.randi() % (WORLD_H - 150))
+		p.color = patch_colors[i % patch_colors.size()]
+		p.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(p)
+	
+	# Dirt paths (organic)
+	for i in 5:
+		var path = ColorRect.new()
+		path.size = Vector2(30 + rng.randi() % 40, 500 + rng.randi() % 400)
+		path.position = Vector2(rng.randi() % (WORLD_W - 60), rng.randi() % (WORLD_H - 500))
+		path.color = Color(0.3, 0.22, 0.12, 0.08)
+		path.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(path)
+		
+		# Path center
+		var pc = ColorRect.new()
+		pc.size = Vector2(path.size.x * 0.5, path.size.y)
+		pc.position = path.position + Vector2(7, 0)
+		pc.color = Color(0.35, 0.25, 0.15, 0.06)
+		pc.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(pc)
+	
+	# River through the middle
+	var river = ColorRect.new()
+	river.size = Vector2(60, WORLD_H)
+	river.position = Vector2(WORLD_W * 0.5 - 30, 0)
+	river.color = Color(0.12, 0.28, 0.45, 0.15)
+	river.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(river)
+	
+	# River edge
+	var re = ColorRect.new()
+	re.size = Vector2(80, WORLD_H)
+	re.position = Vector2(WORLD_W * 0.5 - 40, 0)
+	re.color = Color(0.15, 0.3, 0.4, 0.06)
+	re.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(re)
+	
+	# Lake (larger, more natural)
+	var lake = ColorRect.new()
+	lake.size = Vector2(400, 300); lake.position = Vector2(2200, 800)
+	lake.color = Color(0.1, 0.25, 0.42, 0.35)
+	lake.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(lake)
+	# Lake border
+	for i in 3:
+		var lb = ColorRect.new()
+		var s = 20 + i * 15
+		lb.size = lake.size + Vector2(s, s)
+		lb.position = lake.position - Vector2(s/2, s/2)
+		lb.color = Color(0.15, 0.3, 0.4, 0.08 - i * 0.02)
+		lb.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(lb)
+	
+	# Fog/mist layer (bottom)
+	var fog = ColorRect.new()
+	fog.size = Vector2(WORLD_W, WORLD_H)
+	fog.color = Color(0.08, 0.12, 0.15, 0.08)
+	fog.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(fog)
+	
+	# Decorative elements - grass tufts, flowers, rocks
+	var deco_items = ["🌿", "🌱", "🌾", "🍃", "🌻", "🌸", "🪨"]
+	for i in 80:
+		var g = Label.new()
+		g.text = deco_items[i % deco_items.size()]
+		g.add_theme_font_size_override("font_size", 6 + rng.randi() % 8)
+		g.position = Vector2(rng.randi() % WORLD_W, rng.randi() % WORLD_H)
+		g.modulate = Color(1, 1, 1, 0.04 + rng.randf() * 0.06)
+		g.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(g)
+
+func _gen_ambient_particles():
+	# Adds floating particles for atmosphere
+	for i in 10:
+		var p = ColorRect.new()
+		p.size = Vector2(2, 2)
+		p.position = Vector2(rng.randi() % WORLD_W, rng.randi() % WORLD_H)
+		p.color = Color(1, 1, 0.8, 0.08)
+		p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		p.name = "AmbientParticle"
+		world.add_child(p)
 
 func _gen_resources():
 	var defs = [
-		["tree", 50, Color(0.06, 0.35, 0.06), "🌲", 50],
-		["gold", 5, Color(0.85, 0.65, 0.08), "💎", 300],
-		["stone", 6, Color(0.45, 0.45, 0.45), "🪨", 200],
-		["deer", 4, Color(0.5, 0.3, 0.18), "🦌", 30],
+		["tree", 45, Color(0.05, 0.3, 0.05), "🌲", 50],
+		["gold", 5, Color(0.8, 0.6, 0.08), "💎", 300],
+		["stone", 6, Color(0.4, 0.4, 0.4), "🪨", 200],
+		["deer", 4, Color(0.45, 0.25, 0.15), "🦌", 30],
 	]
 	for d in defs:
 		for i in range(d[1]):
 			var pos = Vector2(100 + rng.randi() % (WORLD_W - 200), 100 + rng.randi() % (WORLD_H - 200))
+			# Resource shadow
+			var shad = ColorRect.new()
+			shad.size = Vector2(24, 6); shad.position = pos - Vector2(6, -4)
+			shad.color = Color(0, 0, 0, 0.1); shad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			world.add_child(shad)
+			# Resource body
 			var r = ColorRect.new()
-			r.size = Vector2(20, 20); r.position = pos - Vector2(1, 1)
+			r.size = Vector2(22, 22); r.position = pos - Vector2(1, 1)
 			r.color = d[2]; r.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(r)
+			# Resource icon
 			var l = Label.new()
-			l.text = d[3]; l.add_theme_font_size_override("font_size", 16)
-			l.position = pos - Vector2(8, 16); l.size = Vector2(32, 32)
+			l.text = d[3]; l.add_theme_font_size_override("font_size", 18)
+			l.position = pos - Vector2(9, -15); l.size = Vector2(36, 36)
 			l.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(l)
 			res_nodes.append({"type": d[0], "pos": pos, "amount": d[4] + rng.randi() % 30, "node": r})
 
@@ -329,6 +395,13 @@ func _process(delta):
 		cam_target += mv
 		cam_target.x = clamp(cam_target.x, 320 / zoom_level, WORLD_W - 320 / zoom_level)
 		cam_target.y = clamp(cam_target.y, 180 / zoom_level, WORLD_H - 180 / zoom_level)
+	
+	# Animate ambient particles
+	for p in world.get_children():
+		if p.name == "AmbientParticle" and is_instance_valid(p):
+			p.position.y += delta * 5
+			p.modulate.a = 0.05 + sin(Time.get_ticks_msec() * 0.001 + p.position.x) * 0.03
+			if p.position.y > WORLD_H: p.position.y = 0; p.position.x = rng.randi() % WORLD_W
 	
 	# Smooth camera
 	cam = cam.lerp(cam_target, delta * 5.0)
