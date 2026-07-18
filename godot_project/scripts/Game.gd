@@ -671,8 +671,8 @@ func _select_at(wp):
 	for b in buildings:
 		if not is_instance_valid(b.get("node")): continue
 		var d = wp.distance_to(b["pos"])
-		if d < 40:
-			_notify("🏗️ " + b["type"].capitalize() + " HP: " + str(b["hp"]) + "/" + str(b["max_hp"]))
+		if d < 50:
+			_select_building(b)
 			return
 
 func _select_entity(e):
@@ -687,6 +687,96 @@ func _select_entity(e):
 
 func _screen_to_world(screen_pos: Vector2) -> Vector2:
 	return (screen_pos + cam - Vector2(640.0 / zoom_level, 360.0 / zoom_level)) / zoom_level
+
+# ─── BUILDING PRODUCTION ───
+var selected_building = null
+var training_queue = {}  # building_index → [unit_type, time_remaining, count]
+
+# Building → trainable units
+var building_units = {
+	"barracks": {"name": "Cuartel", "units": [
+		{"type": "warrior", "name": "Guerrero", "cost": {"gold": 50, "food": 25}, "time": 5.0},
+	]},
+	"archery": {"name": "Arqueria", "units": [
+		{"type": "archer", "name": "Arquero", "cost": {"gold": 80, "food": 15, "wood": 30}, "time": 6.0},
+	]},
+	"stable": {"name": "Caballeriza", "units": [
+		{"type": "cavalry", "name": "Jinete", "cost": {"gold": 120, "food": 40}, "time": 8.0},
+	]},
+	"siege": {"name": "Taller de Asedio", "units": [
+		{"type": "siege_ram", "name": "Ariete", "cost": {"gold": 200, "wood": 150, "stone": 50}, "time": 15.0},
+	]},
+}
+
+func _select_building(b):
+	selected_building = b
+	# Show building info in panel
+	var ip = ui.get_node("InfoPanel"); var il = ui.get_node("InfoLabel")
+	ip.visible = true
+	var type_name = b["type"]
+	var names = {"castle": "🏰 Castillo", "barracks": "⚔️ Cuartel", "archery": "🏹 Arqueria",
+		"stable": "🐎 Caballeriza", "siege": "💣 Taller Asedio", "wall": "🧱 Muralla", "tower_arrow": "🗼 Torre"}
+	il.text = names.get(type_name, type_name) + " | HP: " + str(b["hp"]) + "/" + str(b["max_hp"])
+	
+	# Hide build buttons
+	for i in 6:
+		var btn = ui.get_node("Build" + str(i))
+		if btn: btn.visible = false
+	for i in 3:
+		var act = ui.get_node("Act" + str(i))
+		if act: act.visible = false
+	
+	# Show train buttons
+	if building_units.has(type_name):
+		var bdata = building_units[type_name]
+		for i in 3:
+			var btn = ui.get_node("Act" + str(i))
+			if btn and i < bdata["units"].size():
+				btn.visible = true
+				var u = bdata["units"][i]
+				btn.text = u["name"] + "\n" + str(u["cost"])
+				var unit_idx = i
+				btn.pressed.connect(_on_train_pressed.bind(unit_idx))
+	
+	# Update info text
+	var it = ui.get_node("InfoText")
+	if it and building_units.has(type_name):
+		it.text = "Selecciona una unidad para entrenar:"
+	elif it:
+		it.text = "Edificio defensivo. Selecciona un aldeano para construir mas."
+
+func _on_train_pressed(unit_idx):
+	if not selected_building: return
+	var type_name = selected_building["type"]
+	if not building_units.has(type_name): return
+	var bdata = building_units[type_name]
+	if unit_idx < 0 or unit_idx >= bdata["units"].size(): return
+	_train_unit(bdata, unit_idx)
+
+func _train_unit(bdata, idx):
+	var u = bdata["units"][idx]
+	# Check costs
+	for r in u["cost"].keys():
+		if game_res.get(r, 0) < u["cost"][r]:
+			_notify("❌ Recursos insuficientes para " + u["name"])
+			return
+	# Spend resources
+	for r in u["cost"].keys():
+		game_res[r] -= u["cost"][r]
+	# Spawn unit near building
+	var b = selected_building
+	if b:
+		var spawn_pos = b["pos"] + Vector2(40 + rng.randi() % 30, -20 + rng.randi() % 40)
+		var defs = Globals.unit_defs
+		var def = defs.get(u["type"], defs["warrior"])
+		_make_entity(u["type"], spawn_pos, "?", def["color"], def["hp"], def["atk"])
+		_notify("✅ " + u["name"] + " entrenado!")
+		# Update resource display
+		var keys = ["gold", "stone", "food", "wood", "copper", "bronze", "diamond", "leather"]
+		var ricons = ["🪙", "🪨", "🌾", "🪵", "🟤", "🔶", "💎", "👜"]
+		for i in range(8):
+			var l = ui.get_node("RC" + str(i))
+			if l: l.text = ricons[i] + " " + keys[i].capitalize() + ": " + str(game_res[keys[i]])
 
 func _input(event):
 	if show_menu: return
@@ -757,7 +847,7 @@ func _input(event):
 					e["target_pos"] = wp; e["moving"] = true; e["task"] = "idle"; e["gather_target"] = null
 
 func _confirm_building(type, pos):
-	var costs = {"wall": {"stone": 50}, "barracks": {"gold": 100, "wood": 100}, "archery": {"gold": 120, "wood": 80, "stone": 50}, "stable": {"gold": 150, "wood": 60, "stone": 30}, "siege": {"gold": 200, "wood": 100, "stone": 100}, "tower_arrow": {"gold": 80, "stone": 100, "wood": 40}}
+	var costs = {"wall": {"stone": 10}, "barracks": {"gold": 100, "wood": 100}, "archery": {"gold": 120, "wood": 80, "stone": 50}, "stable": {"gold": 150, "wood": 60, "stone": 30}, "siege": {"gold": 200, "wood": 100, "stone": 100}, "tower_arrow": {"gold": 80, "stone": 100, "wood": 40}}
 	var cost = costs.get(type, {})
 	for r in cost.keys():
 		if game_res.get(r, 0) < cost[r]: _notify("❌ Recursos insuficientes!"); return
@@ -802,9 +892,13 @@ func _hide_info():
 	for i in 6:
 		var b = ui.get_node("Build" + str(i))
 		if b: b.visible = false
+	for i in 3:
+		var act = ui.get_node("Act" + str(i))
+		if act: act.visible = false
+	selected_building = null
 
 func _place_building(type):
-	var costs = {"wall": {"stone": 50}, "barracks": {"gold": 100, "wood": 100}, "archery": {"gold": 120, "wood": 80, "stone": 50}, "stable": {"gold": 150, "wood": 60, "stone": 30}, "siege": {"gold": 200, "wood": 100, "stone": 100}, "tower_arrow": {"gold": 80, "stone": 100, "wood": 40}}
+	var costs = {"wall": {"stone": 10}, "barracks": {"gold": 100, "wood": 100}, "archery": {"gold": 120, "wood": 80, "stone": 50}, "stable": {"gold": 150, "wood": 60, "stone": 30}, "siege": {"gold": 200, "wood": 100, "stone": 100}, "tower_arrow": {"gold": 80, "stone": 100, "wood": 40}}
 	
 	var cost = costs.get(type, {})
 	for r in cost.keys():
