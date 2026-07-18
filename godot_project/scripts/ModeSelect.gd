@@ -94,7 +94,7 @@ func _create_card(pos, title, desc, color, callback):
 
 func _on_offline():
 	Globals.game_mode = "offline"
-	get_tree().change_scene_to_file("res://scenes/Game.tscn")
+	get_tree().change_scene_to_file("res://scenes/HeroSelect.tscn")
 
 func _on_online1v1(): _show_coming_soon()
 func _on_online3v3(): _show_coming_soon()
