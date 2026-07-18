@@ -36,8 +36,8 @@ var key_down = false
 
 func _ready():
 	hero_data = Globals.get_hero(Globals.selected_hero_id)
-	cam = Vector2(640, 360)
-	cam_target = Vector2(640, 360)
+	cam = Vector2(400, 1960)
+	cam_target = Vector2(400, 1960)
 	RenderingServer.set_default_clear_color(Color(0.08, 0.18, 0.06))
 	_gen_terrain()
 	_gen_resources()
