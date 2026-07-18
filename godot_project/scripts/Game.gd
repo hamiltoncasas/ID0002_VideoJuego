@@ -346,7 +346,7 @@ func _build_minimap():
 	var m = ColorRect.new()
 	m.name = "MMap"; m.size = Vector2(160, 160)
 	m.position = Vector2(1280 - 172, 720 - 172); m.color = Color(0.08, 0.18, 0.05)
-	m.mouse_filter = Control.MOUSE_FILTER_PASS; ui.add_child(m)
+	m.mouse_filter = Control.MOUSE_FILTER_STOP; ui.add_child(m)
 	
 	# Click handler for minimap navigation
 	m.gui_input.connect(func(event):
@@ -645,16 +645,17 @@ func _select_at(wp):
 		var d = wp.distance_to(e["pos"])
 		if d < min_dist: min_dist = d; nearest = e
 	
-	# Also check buildings
+	if nearest:
+		_select_entity(nearest)
+		return
+	
+	# Check buildings (only if no entity was found)
 	for b in buildings:
 		if not is_instance_valid(b.get("node")): continue
 		var d = wp.distance_to(b["pos"])
 		if d < 40:
 			_notify("🏗️ " + b["type"].capitalize() + " HP: " + str(b["hp"]) + "/" + str(b["max_hp"]))
 			return
-	
-	if nearest:
-		_select_entity(nearest)
 
 func _select_entity(e):
 	if e["type"] == "villager" or e["type"] == "hero" or e["type"] == "artisan" or e["type"] in ["warrior", "archer", "cavalry"]:
