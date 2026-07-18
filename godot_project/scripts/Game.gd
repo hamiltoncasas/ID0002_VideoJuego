@@ -257,7 +257,7 @@ func _make_entity(type, pos, icon, color, hp, atk):
 	var area = Area2D.new()
 	var shape = RectangleShape2D.new()
 	shape.size = Vector2(32, 36)
-	area.collision_layer = 0; area.collision_mask = 0
+	area.collision_layer = 1; area.collision_mask = 0
 	var col = CollisionShape2D.new(); col.shape = shape; area.add_child(col)
 	ent_renderer.add_child(area)
 	
