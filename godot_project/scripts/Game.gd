@@ -643,6 +643,32 @@ func _enemy_death(en):
 # ═══════════════════════════════════════════════
 #  SELECTION & INPUT
 # ═══════════════════════════════════════════════
+func _select_at(wp):
+	# Deselect all first
+	for oe in entities: 
+		oe["sel"] = false
+		if oe.get("renderer"): oe["renderer"].selected = false
+	selected.clear()
+	_hide_info()
+	
+	# Find nearest entity within click range
+	var nearest = null; var min_dist = 25.0
+	for e in entities:
+		if not is_instance_valid(e.get("node")): continue
+		var d = wp.distance_to(e["pos"])
+		if d < min_dist: min_dist = d; nearest = e
+	
+	# Also check buildings
+	for b in buildings:
+		if not is_instance_valid(b.get("node")): continue
+		var d = wp.distance_to(b["pos"])
+		if d < 40:
+			_notify("🏗️ " + b["type"].capitalize() + " HP: " + str(b["hp"]) + "/" + str(b["max_hp"]))
+			return
+	
+	if nearest:
+		_select_entity(nearest)
+
 func _select_entity(e):
 	if e["type"] == "villager" or e["type"] == "hero" or e["type"] == "artisan" or e["type"] in ["warrior", "archer", "cavalry"]:
 		for oe in entities: 
@@ -655,6 +681,14 @@ func _select_entity(e):
 
 func _input(event):
 	if show_menu: return
+	
+	# Left-click: select unit by proximity
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		var wp = event.position + cam - Vector2(640, 360)
+		if wp.x >= 0 and wp.x < WORLD_W and wp.y >= 0 and wp.y < WORLD_H:
+			_select_at(wp)
+			get_viewport().set_input_as_handled()
+			return
 	
 	# Building placement mode
 	if placing_building and event is InputEventMouseButton and event.pressed:
