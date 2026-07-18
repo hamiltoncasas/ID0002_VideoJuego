@@ -38,15 +38,13 @@ func _load_texture():
 		key = "enemy_hero" if entity_team == "enemy" else "hero"
 	
 	var path = "res://assets/sprites/" + key + ".png"
-	
-	if ResourceLoader.exists(path):
-		var tex = load(path)
-		if tex:
-			_sprite_node = Sprite2D.new()
-			_sprite_node.texture = tex
-			_sprite_node.centered = true
-			_sprite_node.scale = Vector2(1.5, 1.5)
-			add_child(_sprite_node)
+	var tex = load(path)
+	if tex and tex is Texture2D:
+		_sprite_node = Sprite2D.new()
+		_sprite_node.texture = tex
+		_sprite_node.centered = true
+		_sprite_node.scale = Vector2(1.5, 1.5)
+		add_child(_sprite_node)
 
 func _draw():
 	# Always draw fallback (visible behind sprite if loaded)

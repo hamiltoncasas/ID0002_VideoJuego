@@ -51,95 +51,83 @@ func _ready():
 #  TERRAIN
 # ═══════════════════════════════════════════════
 func _gen_terrain():
-	# Deep background gradient
+	# Sky background
 	var sky = ColorRect.new()
 	sky.size = Vector2(WORLD_W, WORLD_H)
-	sky.color = Color(0.05, 0.08, 0.15, 0.8)
+	sky.color = Color(0.08, 0.12, 0.2)
 	sky.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(sky)
 	
-	# Ground base
-	var ground = ColorRect.new()
-	ground.size = Vector2(WORLD_W, WORLD_H)
-	ground.color = Color(0.12, 0.25, 0.08)
-	ground.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(ground)
+	# Mountains (background silhouette)
+	var mtn_colors = [Color(0.1, 0.08, 0.12, 0.6), Color(0.12, 0.1, 0.14, 0.4), Color(0.15, 0.12, 0.16, 0.3)]
+	for m in range(3):
+		for i in range(20):
+			var mtn = ColorRect.new()
+			var mw = 200 + rng.randi() % 300
+			var mh = 80 + rng.randi() % 120 - m * 30
+			mtn.size = Vector2(mw, mh)
+			mtn.position = Vector2(rng.randi() % (WORLD_W - mw), rng.randi() % 100 + m * 20)
+			mtn.color = mtn_colors[m]
+			mtn.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(mtn)
 	
-	# Grass texture layers
-	for i in 4:
+	# Ground base with 3 shades of green
+	for i in 3:
 		var g = ColorRect.new()
 		g.size = Vector2(WORLD_W, WORLD_H)
-		g.color = Color(0.15 + i * 0.04, 0.28 + i * 0.03, 0.08 + i * 0.02, 0.2)
+		g.color = Color(0.08 + i * 0.04, 0.2 + i * 0.06, 0.05 + i * 0.02, 0.3)
 		g.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(g)
 	
-	# Organic terrain patches (circles, not rectangles)
-	var patch_colors = [
-		Color(0.2, 0.35, 0.12, 0.12), Color(0.28, 0.3, 0.15, 0.08),
-		Color(0.15, 0.38, 0.1, 0.1), Color(0.22, 0.28, 0.18, 0.06)]
-	for i in 50:
+	# Grass patches
+	var grass_shades = [Color(0.15, 0.3, 0.08, 0.15), Color(0.2, 0.35, 0.1, 0.12), Color(0.25, 0.28, 0.12, 0.08)]
+	for i in 60:
 		var p = ColorRect.new()
-		var pw = 60 + rng.randi() % 200
-		p.size = Vector2(pw, 50 + rng.randi() % 150)
-		p.position = Vector2(rng.randi() % (WORLD_W - 200), rng.randi() % (WORLD_H - 150))
-		p.color = patch_colors[i % patch_colors.size()]
+		p.size = Vector2(30 + rng.randi() % 150, 30 + rng.randi() % 120)
+		p.position = Vector2(rng.randi() % (WORLD_W - 100), rng.randi() % (WORLD_H - 100))
+		p.color = grass_shades[i % grass_shades.size()]
 		p.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(p)
 	
-	# Dirt paths (organic)
+	# Dirt paths
 	for i in 5:
 		var path = ColorRect.new()
-		path.size = Vector2(30 + rng.randi() % 40, 500 + rng.randi() % 400)
-		path.position = Vector2(rng.randi() % (WORLD_W - 60), rng.randi() % (WORLD_H - 500))
-		path.color = Color(0.3, 0.22, 0.12, 0.08)
+		path.size = Vector2(20 + rng.randi() % 30, 300 + rng.randi() % 400)
+		path.position = Vector2(rng.randi() % (WORLD_W - 40), rng.randi() % (WORLD_H - 300))
+		path.color = Color(0.28, 0.2, 0.1, 0.12)
 		path.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(path)
-		
-		# Path center
-		var pc = ColorRect.new()
-		pc.size = Vector2(path.size.x * 0.5, path.size.y)
-		pc.position = path.position + Vector2(7, 0)
-		pc.color = Color(0.35, 0.25, 0.15, 0.06)
-		pc.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(pc)
 	
-	# River through the middle
+	# River
 	var river = ColorRect.new()
-	river.size = Vector2(60, WORLD_H)
-	river.position = Vector2(WORLD_W * 0.5 - 30, 0)
-	river.color = Color(0.12, 0.28, 0.45, 0.15)
+	river.size = Vector2(50, WORLD_H)
+	river.position = Vector2(WORLD_W * 0.4 - 25, 0)
+	river.color = Color(0.1, 0.22, 0.38, 0.2)
 	river.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(river)
 	
-	# River edge
-	var re = ColorRect.new()
-	re.size = Vector2(80, WORLD_H)
-	re.position = Vector2(WORLD_W * 0.5 - 40, 0)
-	re.color = Color(0.15, 0.3, 0.4, 0.06)
-	re.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(re)
-	
-	# Lake (larger, more natural)
+	# Lake
 	var lake = ColorRect.new()
-	lake.size = Vector2(400, 300); lake.position = Vector2(2200, 800)
-	lake.color = Color(0.1, 0.25, 0.42, 0.35)
+	lake.size = Vector2(300, 200); lake.position = Vector2(2400, 850)
+	lake.color = Color(0.1, 0.22, 0.38, 0.35)
 	lake.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(lake)
-	# Lake border
-	for i in 3:
+	for i in range(3):
 		var lb = ColorRect.new()
-		var s = 20 + i * 15
+		var s = 15 + i * 12
 		lb.size = lake.size + Vector2(s, s)
 		lb.position = lake.position - Vector2(s/2, s/2)
-		lb.color = Color(0.15, 0.3, 0.4, 0.08 - i * 0.02)
+		lb.color = Color(0.12, 0.25, 0.35, 0.08 - i * 0.02)
 		lb.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(lb)
+	
+	# Decorative elements (trees, grass, rocks)
+	var deco_items = ["🌿", "🌱", "🌾", "🍃", "🌻", "🌸", "🪨", "🌲"]
+	for i in 100:
+		var d = Label.new()
+		d.text = deco_items[i % deco_items.size()]
+		d.add_theme_font_size_override("font_size", 6 + rng.randi() % 10)
+		d.position = Vector2(rng.randi() % WORLD_W, rng.randi() % WORLD_H)
+		d.modulate = Color(1, 1, 1, 0.06 + rng.randf() * 0.08)
+		d.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(d)
 	
 	# Fog/mist layer (bottom)
 	var fog = ColorRect.new()
 	fog.size = Vector2(WORLD_W, WORLD_H)
 	fog.color = Color(0.08, 0.12, 0.15, 0.08)
 	fog.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(fog)
-	
-	# Decorative elements - grass tufts, flowers, rocks
-	var deco_items = ["🌿", "🌱", "🌾", "🍃", "🌻", "🌸", "🪨"]
-	for i in 80:
-		var g = Label.new()
-		g.text = deco_items[i % deco_items.size()]
-		g.add_theme_font_size_override("font_size", 6 + rng.randi() % 8)
-		g.position = Vector2(rng.randi() % WORLD_W, rng.randi() % WORLD_H)
-		g.modulate = Color(1, 1, 1, 0.04 + rng.randf() * 0.06)
-		g.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(g)
 
 func _gen_ambient_particles():
 	# Adds floating particles for atmosphere
