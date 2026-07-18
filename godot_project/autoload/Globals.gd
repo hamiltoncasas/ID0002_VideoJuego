@@ -7,6 +7,9 @@ var gems = 0
 var current_wave = 1
 var max_wave = 20
 
+# Army composition from castle selection
+var army_counts = {"warrior": 0, "archer": 0, "cavalry": 0}
+
 # Selected hero data
 var selected_hero_id = 0
 var heroes = [

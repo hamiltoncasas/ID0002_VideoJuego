@@ -220,4 +220,4 @@ func select_hero(idx):
 			card.modulate = Color(0.85, 0.85, 0.85)
 
 func _on_battle():
-	get_tree().change_scene_to_file("res://scenes/Battle.tscn")
+	get_tree().change_scene_to_file("res://scenes/ArmySelect.tscn")
