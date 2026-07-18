@@ -1,40 +1,92 @@
 extends Control
 
-var selected_units = []
 var max_units = 6
-var unit_types = ["warrior", "archer", "cavalry"]
 var counts = {"warrior": 0, "archer": 0, "cavalry": 0}
-var total_cost = 0
-
-@onready var deploy_btn = $DeployBtn
-@onready var gold_label = $GoldLabel
-@onready var army_display = $ArmyDisplay
+var _cards = []
 
 func _ready():
-	_update_ui()
-	
-	deploy_btn.pressed.connect(_on_deploy)
+	_create_cards()
+	_update_display()
+	$DeployBtn.pressed.connect(_on_deploy)
 	$Back.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/MainMenu.tscn"))
-	
-	# Create unit selection cards
+
+func _create_cards():
 	var types = ["warrior", "archer", "cavalry"]
 	var names = ["Guerrero", "Arquero", "Jinete"]
-	var icons = ["🛡️", "🏹", "🐎"]
+	var icons_text = ["🛡️", "🏹", "🐎"]
 	var costs = [50, 80, 120]
 	
 	for i in range(3):
-		var card = get_node("UnitCard" + str(i + 1))
-		card.get_node("Name").text = names[i]
-		card.get_node("Icon").text = icons[i]
-		card.get_node("Cost").text = "🪙" + str(costs[i]) + " 🌾" + str(Globals.unit_defs[types[i]]["food"])
-		card.get_node("Plus").pressed.connect(_add_unit.bind(types[i], costs[i]))
-		card.get_node("Minus").pressed.connect(_remove_unit.bind(types[i], costs[i]))
-	
-	# Preview
-	_refresh_army_preview()
+		var d = Globals.unit_defs[types[i]]
+		var food = d["food"]
+		
+		var card = ColorRect.new()
+		card.size = Vector2(240, 300)
+		card.position = Vector2(100 + i * 300, 100)
+		card.color = Color(0.12, 0.08, 0.18, 0.9)
+		add_child(card)
+		
+		var icon = Label.new()
+		icon.text = icons_text[i]
+		icon.add_theme_font_size_override("font_size", 48)
+		icon.position = Vector2(70, 10)
+		icon.size = Vector2(100, 70)
+		icon.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		card.add_child(icon)
+		
+		var nl = Label.new()
+		nl.text = names[i]
+		nl.add_theme_font_size_override("font_size", 18)
+		nl.position = Vector2(20, 85)
+		nl.size = Vector2(200, 25)
+		nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		card.add_child(nl)
+		
+		var cl = Label.new()
+		cl.text = "Oro: " + str(costs[i]) + "  Comida: " + str(food)
+		cl.add_theme_font_size_override("font_size", 12)
+		cl.position = Vector2(20, 110)
+		cl.size = Vector2(200, 20)
+		cl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		cl.modulate = Color(0.8, 0.8, 0.5)
+		card.add_child(cl)
+		
+		var stats = Label.new()
+		stats.text = "HP:" + str(d["hp"]) + " ATK:" + str(d["atk"]) + " DEF:" + str(d["def"])
+		stats.add_theme_font_size_override("font_size", 10)
+		stats.position = Vector2(20, 132)
+		stats.size = Vector2(200, 18)
+		stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		stats.modulate = Color(0.6, 0.8, 0.6)
+		card.add_child(stats)
+		
+		var count_label = Label.new()
+		count_label.name = "CountLabel"
+		count_label.text = "0"
+		count_label.add_theme_font_size_override("font_size", 28)
+		count_label.position = Vector2(90, 170)
+		count_label.size = Vector2(60, 40)
+		count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		card.add_child(count_label)
+		
+		var plus = Button.new()
+		plus.text = "+"
+		plus.position = Vector2(155, 190)
+		plus.size = Vector2(40, 30)
+		card.add_child(plus)
+		plus.pressed.connect(_add_unit.bind(types[i], costs[i]))
+		
+		var minus = Button.new()
+		minus.text = "-"
+		minus.position = Vector2(45, 190)
+		minus.size = Vector2(40, 30)
+		card.add_child(minus)
+		minus.pressed.connect(_remove_unit.bind(types[i], costs[i]))
+		
+		_cards.append({"card": card, "type": types[i], "count": count_label})
 
 func _add_unit(type, cost):
-	if _total_units() >= max_units: return
+	if _total() >= max_units: return
 	if Globals.gold < cost: return
 	var food = Globals.unit_defs[type]["food"]
 	if Globals.food < food: return
@@ -42,9 +94,7 @@ func _add_unit(type, cost):
 	counts[type] += 1
 	Globals.gold -= cost
 	Globals.food -= food
-	_update_counts()
-	_update_ui()
-	_refresh_army_preview()
+	_update_display()
 
 func _remove_unit(type, cost):
 	if counts[type] <= 0: return
@@ -52,44 +102,36 @@ func _remove_unit(type, cost):
 	counts[type] -= 1
 	Globals.gold += cost
 	Globals.food += food
-	_update_counts()
-	_update_ui()
-	_refresh_army_preview()
+	_update_display()
 
-func _update_counts():
-	var types = ["warrior", "archer", "cavalry"]
-	for i in range(3):
-		var card = get_node("UnitCard" + str(i + 1))
-		card.get_node("Count").text = str(counts[types[i]])
-
-func _total_units():
+func _total():
 	return counts["warrior"] + counts["archer"] + counts["cavalry"]
 
-func _update_ui():
-	gold_label.text = "🪙 Oro: " + str(Globals.gold) + "  🌾 Comida: " + str(Globals.food)
-	deploy_btn.text = "⚔️  INICIAR BATALLA (" + str(_total_units()) + "/" + str(max_units) + ")"
-
-func _refresh_army_preview():
-	# Clear old
-	for c in army_display.get_children():
+func _update_display():
+	$GoldLabel.text = "Oro: " + str(Globals.gold) + "  Comida: " + str(Globals.food)
+	$DeployBtn.text = "INICIAR BATALLA (" + str(_total()) + "/" + str(max_units) + ")"
+	
+	for c in _cards:
+		c["count"].text = str(counts[c["type"]])
+	
+	# Update army preview
+	var prev = $ArmyDisplay
+	for c in prev.get_children():
 		c.queue_free()
 	
-	var x = 10
-	var types = ["warrior", "archer", "cavalry"]
-	var names = ["Guerrero", "Arquero", "Jinete"]
 	var icons = {"warrior": "🛡️", "archer": "🏹", "cavalry": "🐎"}
-	
-	for type in types:
+	var x = 10
+	for type in ["warrior", "archer", "cavalry"]:
 		for i in range(counts[type]):
-			var u = Label.new()
-			u.text = icons[type]
-			u.add_theme_font_size_override("font_size", 24)
-			u.position = Vector2(x, 5)
-			u.size = Vector2(30, 30)
-			army_display.add_child(u)
-			x += 35
+			var lbl = Label.new()
+			lbl.text = icons[type]
+			lbl.add_theme_font_size_override("font_size", 22)
+			lbl.position = Vector2(x, 5)
+			lbl.size = Vector2(28, 28)
+			prev.add_child(lbl)
+			x += 32
 
 func _on_deploy():
-	if _total_units() == 0: return
+	if _total() == 0: return
 	Globals.army_counts = counts.duplicate()
 	get_tree().change_scene_to_file("res://scenes/Battle.tscn")

@@ -42,25 +42,57 @@ func _ready():
 	_update_ui()
 	phase = "preparation"; prep_timer = 3.0
 	status_label.text = "⏳ PREPARACION..."
+	
+
 
 func _generate_terrain():
-	# Create a nice 2D battlefield background
-	# Grass field
-	var grass = ColorRect.new()
-	grass.size = Vector2(1260, 640)
-	grass.position = Vector2(10, 55)
-	grass.color = Color(0.15, 0.35, 0.1, 0.4)
-	battlefield.add_child(grass)
+	# Ground layers with gradient
+	var layers = [
+		[Vector2(10, 55), Vector2(1260, 640), Color(0.12, 0.28, 0.08, 0.5)],  # Deep grass
+		[Vector2(10, 55), Vector2(1260, 640), Color(0.18, 0.35, 0.12, 0.3)],  # Top grass
+	]
+	for l in layers:
+		var r = ColorRect.new()
+		r.size = l[1]; r.position = l[0]; r.color = l[2]
+		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		battlefield.add_child(r)
 	
-	# Decorative elements
-	for i in range(20):
+	# Dirt paths (horizontal stripes)
+	for y in range(3):
+		var path = ColorRect.new()
+		path.size = Vector2(1260, 30)
+		path.position = Vector2(10, 150 + y * 180)
+		path.color = Color(0.3, 0.2, 0.1, 0.15)
+		path.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		battlefield.add_child(path)
+	
+	# Center zone highlight
+	var center = ColorRect.new()
+	center.size = Vector2(400, 600)
+	center.position = Vector2(440, 60)
+	center.color = Color(0.25, 0.3, 0.15, 0.08)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	battlefield.add_child(center)
+	
+	# Decorative elements with better placement
+	var items = ["🌿", "🌱", "🪨", "🌾", "🍃", "🌻", "🌲"]
+	for i in range(30):
 		var d = Label.new()
-		var items = ["🌿", "🌱", "🪨", "🌾", "🍃"]
 		d.text = items[i % items.size()]
-		d.position = Vector2(30 + randi() % 1200, 65 + randi() % 600)
-		d.modulate = Color(1, 1, 1, 0.1 + randf() * 0.15)
+		d.position = Vector2(20 + randi() % 1240, 60 + randi() % 620)
+		d.modulate = Color(1, 1, 1, 0.08 + randf() * 0.12)
 		d.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		d.add_theme_font_size_override("font_size", 14 + randi() % 8)
 		battlefield.add_child(d)
+	
+	# Border lines
+	for y in [55, 695]:
+		var line = ColorRect.new()
+		line.size = Vector2(1280, 2)
+		line.position = Vector2(0, y)
+		line.color = Color(0.5, 0.4, 0.2, 0.15)
+		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		battlefield.add_child(line)
 
 func _spawn_hero():
 	var u = unit_scene.instantiate()
