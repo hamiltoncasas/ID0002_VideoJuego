@@ -1,225 +1,306 @@
 #!/usr/bin/env python3
-"""Generate high-quality pixel art sprites for all game units."""
+"""High-quality pixel art sprite generator for Legado Muisca."""
 from PIL import Image, ImageDraw
-import os, json
+import os
 
+SIZE = 96  # Higher resolution for better quality
 SPRITE_DIR = "assets/sprites"
 os.makedirs(SPRITE_DIR, exist_ok=True)
 
-def create_unit_sprite(name, body_color, armor_color, weapon_color, has_helmet=False, is_hero=False, size=64):
-    """Generate a detailed pixel art character sprite."""
-    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    cx, cy = size // 2, size // 2
-    
-    # Helper functions
-    def rect(x1, y1, x2, y2, color):
-        draw.rectangle([x1, y1, x2, y2], fill=color)
-    
-    def circle(cx, cy, r, color):
-        draw.ellipse([cx-r, cy-r, cx+r, cy+r], fill=color)
-    
-    def rgba(c, a=255):
-        return (int(c[0]*255), int(c[1]*255), int(c[2]*255), a) if isinstance(c, (list, tuple)) else c
-    
-    bc = rgba(body_color, 255)
-    ac = rgba(armor_color, 255) if armor_color else (180, 180, 180, 255)
-    wc = rgba(weapon_color, 255) if weapon_color else (200, 200, 200, 255)
-    
-    size_s = size // 64  # scale factor
+def draw_pixel_character(draw, cx, cy, body_color, armor_color, weapon_color, has_helmet, is_hero, unit_type, team):
+    """Draw a detailed pixel art character centered at (cx, cy)."""
+    s = SIZE // 32  # scale reference
+    bc = body_color; ac = armor_color; wc = weapon_color
     
     # Shadow
-    draw.ellipse([cx - 12*size_s, cy + 8*size_s, cx + 12*size_s, cy + 14*size_s], fill=(0, 0, 0, 40))
+    draw.ellipse([cx - 18*s, cy + 18*s, cx + 18*s, cy + 22*s], fill=(0, 0, 0, 40))
     
-    # Legs
-    lc = (max(0,bc[0]-40), max(0,bc[1]-40), max(0,bc[2]-40), 255)
-    draw.rectangle([cx - 8*size_s, cy + 4*size_s, cx - 3*size_s, cy + 14*size_s], fill=lc)
-    draw.rectangle([cx + 3*size_s, cy + 4*size_s, cx + 8*size_s, cy + 14*size_s], fill=lc)
+    # === LEGS ===
+    leg_c = (max(0, bc[0]-50), max(0, bc[1]-50), max(0, bc[2]-50), 255)
+    # Left leg
+    draw.polygon([(cx-9*s, cy+4*s), (cx-3*s, cy+4*s), (cx-5*s, cy+18*s), (cx-9*s, cy+18*s)], fill=leg_c)
+    # Right leg
+    draw.polygon([(cx+3*s, cy+4*s), (cx+9*s, cy+4*s), (cx+9*s, cy+18*s), (cx+5*s, cy+18*s)], fill=leg_c)
     
     # Boots
-    draw.rectangle([cx - 9*size_s, cy + 11*size_s, cx - 2*size_s, cy + 14*size_s], fill=(80, 50, 30, 255))
-    draw.rectangle([cx + 2*size_s, cy + 11*size_s, cx + 9*size_s, cy + 14*size_s], fill=(80, 50, 30, 255))
+    for bx, by in [(-8, 15), (4, 15)]:
+        draw.rectangle([cx+bx*s, cy+by*s, cx+(bx+5)*s, cy+20*s], fill=(70, 45, 25, 255))
     
-    # Tunic/body
-    draw.rectangle([cx - 10*size_s, cy - 6*size_s, cx + 10*size_s, cy + 6*size_s], fill=bc)
+    # === BODY / TUNIC ===
+    body_main = bc
+    # Torso
+    draw.rectangle([cx-11*s, cy-8*s, cx+11*s, cy+6*s], fill=body_main)
+    # Body highlight (left side)
+    hl = (min(255,bc[0]+35), min(255,bc[1]+35), min(255,bc[2]+35), 200)
+    draw.rectangle([cx-9*s, cy-7*s, cx-5*s, cy+4*s], fill=hl)
+    # Body shadow (right side)
+    sh = (max(0,bc[0]-30), max(0,bc[1]-30), max(0,bc[2]-30), 200)
+    draw.rectangle([cx+5*s, cy-7*s, cx+9*s, cy+4*s], fill=sh)
     
-    # Body highlight
-    draw.rectangle([cx - 8*size_s, cy - 5*size_s, cx - 3*size_s, cy + 4*size_s], 
-                  fill=(min(255,bc[0]+30), min(255,bc[1]+30), min(255,bc[2]+30), 180))
+    # Belt
+    draw.rectangle([cx-10*s, cy+3*s, cx+10*s, cy+5*s], fill=(80, 60, 40, 255))
+    # Belt buckle
+    draw.rectangle([cx-2*s, cy+3*s, cx+2*s, cy+5*s], fill=(200, 180, 60, 255))
     
-    # Armor / chest plate
-    draw.rectangle([cx - 7*size_s, cy - 3*size_s, cx + 7*size_s, cy + 3*size_s], fill=ac)
-    # Armor line detail
-    draw.line([cx - 5*size_s, cy - 1*size_s, cx + 5*size_s, cy - 1*size_s], 
-             fill=(ac[0]//2, ac[1]//2, ac[2]//2, 255), width=2)
+    # === ARMOR / CHEST PLATE ===
+    # Main armor
+    draw.rectangle([cx-8*s, cy-6*s, cx+8*s, cy+2*s], fill=ac)
+    # Armor highlight
+    armor_hl = (min(255,ac[0]+30), min(255,ac[1]+30), min(255,ac[2]+30), 200)
+    draw.rectangle([cx-6*s, cy-5*s, cx-2*s, cy+1*s], fill=armor_hl)
+    # Armor shadow
+    armor_sh = (max(0,ac[0]-25), max(0,ac[1]-25), max(0,ac[2]-25), 200)
+    draw.rectangle([cx+2*s, cy-5*s, cx+6*s, cy+1*s], fill=armor_sh)
+    # Armor center line
+    draw.line([cx, cy-6*s, cx, cy+2*s], fill=(max(0,ac[0]-40), max(0,ac[1]-40), max(0,ac[2]-40), 180), width=1)
     
-    # Arms
-    arm_c = (max(0,bc[0]-20), max(0,bc[1]-20), max(0,bc[2]-20), 255)
-    draw.rectangle([cx - 13*size_s, cy - 4*size_s, cx - 10*size_s, cy + 2*size_s], fill=arm_c)
-    draw.rectangle([cx + 10*size_s, cy - 4*size_s, cx + 13*size_s, cy + 2*size_s], fill=arm_c)
+    # === ARMS ===
+    arm_c = (max(0,bc[0]-15), max(0,bc[1]-15), max(0,bc[2]-15), 255)
+    # Left arm
+    draw.rectangle([cx-14*s, cy-6*s, cx-11*s, cy+3*s], fill=arm_c)
+    # Right arm (weapon arm)
+    draw.rectangle([cx+11*s, cy-6*s, cx+14*s, cy+3*s], fill=arm_c)
     
-    # Weapon (right arm)
-    if is_hero:
-        draw.rectangle([cx + 12*size_s, cy - 8*size_s, cx + 16*size_s, cy + 1*size_s], fill=wc)
-        draw.rectangle([cx + 14*size_s, cy - 10*size_s, cx + 16*size_s, cy - 5*size_s], fill=(220, 180, 50, 255))
-    elif name == "warrior":
-        draw.rectangle([cx + 12*size_s, cy - 6*size_s, cx + 18*size_s, cy + 1*size_s], fill=wc)
-        draw.rectangle([cx + 12*size_s, cy - 3*size_s, cx + 14*size_s, cy + 1*size_s], fill=(120, 60, 20, 255))
-    elif name == "archer":
-        draw.line([cx + 10*size_s, cy - 2*size_s, cx + 22*size_s, cy - 12*size_s], fill=(150, 80, 20, 255), width=3)
-        draw.line([cx + 22*size_s, cy - 12*size_s, cx + 18*size_s, cy - 2*size_s], fill=(150, 80, 20, 255), width=2)
-    elif name == "cavalry":
-        draw.rectangle([cx + 12*size_s, cy - 8*size_s, cx + 18*size_s, cy + 1*size_s], fill=wc)
-        draw.rectangle([cx - 8*size_s, cy + 2*size_s, cx + 12*size_s, cy + 8*size_s], fill=(max(0,bc[0]-40), max(0,bc[1]-20), max(0,bc[2]-20), 200))
-    elif name == "villager":
-        draw.rectangle([cx + 12*size_s, cy + 0*size_s, cx + 16*size_s, cy + 4*size_s], fill=(150, 100, 30, 255))
-    elif name == "artisan":
-        draw.rectangle([cx + 12*size_s, cy + 0*size_s, cx + 15*size_s, cy + 3*size_s], fill=(200, 180, 50, 255))
+    # === WEAPON ===
+    if unit_type == "hero":
+        # Golden sword
+        draw.rectangle([cx+13*s, cy-12*s, cx+18*s, cy+2*s], fill=wc)
+        draw.rectangle([cx+14*s, cy-14*s, cx+17*s, cy-10*s], fill=(255, 200, 50, 255))
+        # Sword guard
+        draw.rectangle([cx+12*s, cy-3*s, cx+19*s, cy-1*s], fill=(180, 150, 50, 255))
+    elif unit_type == "warrior":
+        # Sword
+        draw.rectangle([cx+13*s, cy-10*s, cx+17*s, cy+2*s], fill=wc)
+        draw.rectangle([cx+14*s, cy-12*s, cx+16*s, cy-8*s], fill=(200, 200, 210, 255))
+        draw.rectangle([cx+12*s, cy-2*s, cx+18*s, cy+1*s], fill=(120, 60, 20, 255))
+    elif unit_type == "archer":
+        # Bow
+        draw.arc([cx+12*s, cy-12*s, cx+24*s, cy+4*s], 270, 450, fill=(150, 80, 20, 255), width=3)
+        # Bow string
+        draw.line([cx+12*s, cy-10*s, cx+12*s, cy+2*s], fill=(200, 180, 150, 200), width=1)
+    elif unit_type == "cavalry":
+        # Spear
+        draw.rectangle([cx+13*s, cy-16*s, cx+16*s, cy+2*s], fill=wc)
+        draw.polygon([(cx+13*s, cy-18*s), (cx+16*s, cy-18*s), (cx+14.5*s, cy-22*s)], fill=(200, 200, 210, 255))
+    elif unit_type == "villager":
+        # Tool (axe)
+        draw.rectangle([cx+13*s, cy-2*s, cx+18*s, cy+1*s], fill=(150, 100, 30, 255))
+        draw.rectangle([cx+17*s, cy-5*s, cx+19*s, cy-1*s], fill=(180, 180, 190, 255))
+    elif unit_type == "artisan":
+        # Hammer
+        draw.rectangle([cx+13*s, cy-2*s, cx+17*s, cy+1*s], fill=(120, 80, 30, 255))
+        draw.rectangle([cx+16*s, cy-5*s, cx+18*s, cy-1*s], fill=(200, 200, 50, 255))
     
-    # Head
-    hc = bc
-    draw.ellipse([cx - 7*size_s, cy - 17*size_s, cx + 7*size_s, cy - 3*size_s], fill=hc)
-    # Head highlight
-    draw.ellipse([cx - 5*size_s, cy - 16*size_s, cx + 3*size_s, cy - 10*size_s], 
-                fill=(min(255,bc[0]+25), min(255,bc[1]+25), min(255,bc[2]+25), 100))
+    # === HEAD ===
+    head_c = (min(255,bc[0]+10), min(255,bc[1]+10), min(255,bc[2]+10), 255)
+    # Face circle
+    draw.ellipse([cx-8*s, cy-18*s, cx+8*s, cy-4*s], fill=head_c)
+    # Face highlight
+    draw.ellipse([cx-5*s, cy-17*s, cx+2*s, cy-12*s], fill=(min(255,head_c[0]+20), min(255,head_c[1]+20), min(255,head_c[2]+20), 120))
     
-    # Eyes
-    draw.ellipse([cx - 4*size_s, cy - 12*size_s, cx - 1*size_s, cy - 9*size_s], fill=(230, 230, 245, 255))
-    draw.ellipse([cx + 1*size_s, cy - 12*size_s, cx + 4*size_s, cy - 9*size_s], fill=(230, 230, 245, 255))
+    # === EYES ===
+    # White
+    draw.ellipse([cx-5*s, cy-13*s, cx-1*s, cy-10*s], fill=(235, 235, 245, 255))
+    draw.ellipse([cx+1*s, cy-13*s, cx+5*s, cy-10*s], fill=(235, 235, 245, 255))
     # Pupil
-    draw.ellipse([cx - 3*size_s, cy - 11*size_s, cx - 2*size_s, cy - 10*size_s], fill=(20, 20, 50, 255))
-    draw.ellipse([cx + 2*size_s, cy - 11*size_s, cx + 3*size_s, cy - 10*size_s], fill=(20, 20, 50, 255))
-    # Catchlight
-    draw.ellipse([cx - 2*size_s, cy - 12*size_s, cx - 1*size_s, cy - 11*size_s], fill=(245, 245, 255, 220))
-    draw.ellipse([cx + 3*size_s, cy - 12*size_s, cx + 4*size_s, cy - 11*size_s], fill=(245, 245, 255, 220))
+    draw.ellipse([cx-4*s, cy-12*s, cx-2*s, cy-11*s], fill=(20, 20, 50, 255))
+    draw.ellipse([cx+2*s, cy-12*s, cx+4*s, cy-11*s], fill=(20, 20, 50, 255))
+    # Catchlights
+    draw.ellipse([cx-3*s, cy-13*s, cx-2*s, cy-12*s], fill=(255, 255, 255, 220))
+    draw.ellipse([cx+3*s, cy-13*s, cx+4*s, cy-12*s], fill=(255, 255, 255, 220))
     
-    # Helmet / hair
+    # Eyebrows
+    draw.line([cx-6*s, cy-15*s, cx-2*s, cy-14.5*s], fill=(40, 20, 10, 200), width=2)
+    draw.line([cx+2*s, cy-14.5*s, cx+6*s, cy-15*s], fill=(40, 20, 10, 200), width=2)
+    
+    # === HAIR / HELMET ===
     if has_helmet or is_hero:
-        draw.rectangle([cx - 7*size_s, cy - 16*size_s, cx + 7*size_s, cy - 13*size_s], fill=(180, 50, 50, 200))
+        # Helmet
+        helm_color = (180, 50, 50, 230) if not is_hero else (200, 170, 50, 230)
+        draw.rectangle([cx-8*s, cy-21*s, cx+8*s, cy-16*s], fill=helm_color)
+        # Helmet highlight
+        hh = (min(255,helm_color[0]+40), min(255,helm_color[1]+40), min(255,helm_color[2]+40), 200)
+        draw.rectangle([cx-6*s, cy-20*s, cx-2*s, cy-17*s], fill=hh)
+        # Helmet plume (hero)
         if is_hero:
-            draw.rectangle([cx - 5*size_s, cy - 19*size_s, cx + 5*size_s, cy - 16*size_s], fill=(200, 170, 50, 200))
+            draw.ellipse([cx-3*s, cy-25*s, cx+3*s, cy-19*s], fill=(220, 50, 50, 230))
+        # Visor
+        draw.rectangle([cx-7*s, cy-17*s, cx+7*s, cy-16*s], fill=(40, 40, 40, 200))
     else:
         # Hair
-        draw.arc([cx - 7*size_s, cy - 16*size_s, cx + 7*size_s, cy - 10*size_s], 180, 360, fill=(120, 60, 20, 200), width=3)
+        hair_colors = [(100, 50, 20, 230), (80, 40, 15, 200), (60, 30, 10, 180)]
+        for i, hc in enumerate(hair_colors):
+            dy = i * 2
+            draw.arc([cx-8*s, cy-18*s+dy, cx+8*s, cy-10*s+dy], 180, 360, fill=hc, width=4)
     
-    # Hero aura glow
+    # === HERO AURA ===
     if is_hero:
-        for r in range(18, 22, 2):
-            draw.ellipse([cx - r*size_s, cy - r*size_s - 2, cx + r*size_s, cy + r*size_s - 2], 
-                        outline=(255, 220, 50, 20), width=2)
+        for r in range(20, 26, 3):
+            draw.ellipse([cx-r*s, cy-r*s-2, cx+r*s, cy+r*s-2], outline=(255, 220, 50, 15), width=2)
+
+def create_unit_sprite(unit_type, team, body_color, armor_color=None, weapon_color=None, has_helmet=False, is_hero=False):
+    """Create a full character sprite."""
+    img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    cx, cy = SIZE // 2, SIZE // 2
     
+    if armor_color is None: armor_color = (min(255,body_color[0]+10), min(255,body_color[1]-10), min(255,body_color[2]-10), 255)
+    if weapon_color is None: weapon_color = (200, 200, 210, 255)
+    
+    # For enemy team, darken colors
+    if team == "enemy":
+        body_color = (body_color[0]//2, body_color[1]//3, body_color[2]//3, 255)
+        armor_color = (armor_color[0]//2, armor_color[1]//3, armor_color[2]//3, 255)
+    
+    draw_pixel_character(draw, cx, cy, body_color, armor_color, weapon_color, has_helmet, is_hero, unit_type, team)
     return img
 
-def save_character_sheet():
-    """Generate all unit sprites."""
-    units = {
-        "hero": ((255, 180, 25), (180, 140, 60), (255, 220, 100), True, True),
-        "warrior": ((180, 100, 50), (160, 130, 100), (180, 180, 200), True, False),
-        "archer": ((80, 150, 80), (130, 100, 60), (160, 90, 30), False, False),
-        "cavalry": ((200, 130, 50), (150, 120, 80), (180, 180, 200), True, False),
-        "villager": ((150, 100, 70), (130, 110, 80), (160, 120, 60), False, False),
-        "artisan": ((180, 150, 50), (160, 140, 70), (200, 180, 60), False, False),
-    }
-    
-    for name, (bc, ac, wc, helm, hero) in units.items():
-        img = create_unit_sprite(name, bc, ac, wc, helm, hero)
-        path = os.path.join(SPRITE_DIR, f"{name}.png")
-        img.save(path)
-        print(f"  ✅ {name}.png")
-    
-    # Also generate enemy versions (darker)
-    for name, (bc, ac, wc, helm, hero) in units.items():
-        ebc = (bc[0]//2, bc[1]//3, bc[2]//3)
-        eac = (ac[0]//2, ac[1]//3, ac[2]//3)
-        ewc = (wc[0]//2, wc[1]//2, wc[2]//2)
-        img = create_unit_sprite(f"enemy_{name}", ebc, eac, ewc, helm, False)
-        path = os.path.join(SPRITE_DIR, f"enemy_{name}.png")
-        img.save(path)
-        print(f"  ✅ enemy_{name}.png")
-
-def create_building_sprite(name, base_color, roof_color, w=96, h=96):
-    """Generate building sprites like castle, barracks, etc."""
-    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+def create_building_sprite(building_type, size=96):
+    """Generate building sprites with detail."""
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
-    cx, cy = w // 2, h // 2
+    cx, cy = size // 2, size // 2
+    
+    config = {
+        "castle": {"walls": (140, 85, 45), "roof": (160, 50, 50), "h": 1.0},
+        "barracks": {"walls": (160, 95, 50), "roof": (180, 100, 60), "h": 0.7},
+        "archery": {"walls": (130, 85, 45), "roof": (170, 120, 70), "h": 0.65},
+        "stable": {"walls": (150, 100, 50), "roof": (160, 130, 80), "h": 0.65},
+        "wall": {"walls": (130, 105, 70), "roof": (110, 95, 65), "h": 0.4},
+        "tower_arrow": {"walls": (140, 90, 50), "roof": (160, 50, 50), "h": 0.8},
+    }
+    cfg = config.get(building_type, config["castle"])
+    
+    w = int(size * 0.55); h = int(size * cfg["h"] * 0.5)
+    wx, wy = cx - w//2, cy - h//2 + 10
     
     # Shadow
-    draw.ellipse([cx - w//3, cy + h//4, cx + w//3, cy + h//3], fill=(0, 0, 0, 40))
+    draw.ellipse([cx - w//2 - 5, cy + h//2, cx + w//2 + 5, cy + h//2 + 10], fill=(0, 0, 0, 40))
     
     # Walls
-    wall_color = base_color
-    draw.rectangle([cx - w//3, cy - h//6, cx + w//3, cy + h//4], fill=wall_color)
+    for layer in range(3):
+        offset = layer * 3
+        lc = (cfg["walls"][0]-layer*15, cfg["walls"][1]-layer*10, cfg["walls"][2]-layer*5, 255)
+        draw.rectangle([wx-offset, wy+offset, wx+w+offset, wy+h+offset], fill=lc)
     
-    # Roof
-    roof = roof_color
-    draw.polygon([(cx - w//3 - 5, cy - h//6), (cx, cy - h//3), (cx + w//3 + 5, cy - h//6)], fill=roof)
+    # Wall texture (brick lines)
+    for row in range(0, h, 8):
+        draw.line([wx, wy+row, wx+w, wy+row], fill=(cfg["walls"][0]-30, cfg["walls"][1]-20, cfg["walls"][2]-10, 100), width=1)
+    for col in range(0, w, 12):
+        draw.line([wx+col, wy, wx+col, wy+h], fill=(cfg["walls"][0]-30, cfg["walls"][1]-20, cfg["walls"][2]-10, 100), width=1)
     
     # Door
-    draw.rectangle([cx - 8, cy - 5, cx + 8, cy + h//4], fill=(80, 50, 30, 255))
+    door_w = w//4; door_h = h//2
+    draw.rectangle([cx - door_w//2, wy + h - door_h, cx + door_w//2, wy + h], fill=(60, 40, 20, 255))
+    # Door arch
+    draw.arc([cx - door_w//2, wy + h - door_h - 5, cx + door_w//2, wy + h - door_h + 5], 0, 180, fill=(60, 40, 20, 255), width=3)
     
     # Windows
-    for wx in [-w//6, w//6]:
-        draw.rectangle([cx + wx - 5, cy - 15, cx + wx + 5, cy - 5], fill=(200, 180, 100, 200))
+    win_w = w//6; win_h = h//5
+    for side in [-1, 1]:
+        win_x = cx + side * w//4 - win_w//2
+        win_y = wy + h//4
+        draw.rectangle([win_x, win_y, win_x+win_w, win_y+win_h], fill=(200, 180, 100, 220))
+        draw.rectangle([win_x, win_y, win_x+win_w, win_y+win_h], outline=(60, 40, 20, 200), width=1)
+        # Window cross
+        draw.line([win_x+win_w//2, win_y, win_x+win_w//2, win_y+win_h], fill=(60, 40, 20, 150), width=1)
+        draw.line([win_x, win_y+win_h//2, win_x+win_w, win_y+win_h//2], fill=(60, 40, 20, 150), width=1)
+    
+    # Roof
+    roof_h = h // 3
+    roof_points = [(wx-8, wy), (cx, wy-roof_h), (wx+w+8, wy)]
+    draw.polygon(roof_points, fill=cfg["roof"])
+    # Roof highlight
+    hl_roof = (min(255,cfg["roof"][0]+30), min(255,cfg["roof"][1]+30), min(255,cfg["roof"][2]+30), 200)
+    draw.polygon([(wx-4, wy), (cx, wy-roof_h+5), (cx-w//4, wy)], fill=hl_roof)
+    # Roof tiles (lines)
+    for ry in range(0, roof_h, 6):
+        rl_x = int(cx - (w//2+8) * (1 - ry/roof_h))
+        rr_x = int(cx + (w//2+8) * (1 - ry/roof_h))
+        draw.line([rl_x, wy-ry, rr_x, wy-ry], fill=(max(0,cfg["roof"][0]-40), max(0,cfg["roof"][1]-40), max(0,cfg["roof"][2]-40), 80), width=1)
+    
+    # Flag on top (for castle)
+    if building_type == "castle":
+        flag_x = cx
+        flag_y = wy - roof_h - 10
+        draw.line([flag_x, flag_y, flag_x, flag_y+15], fill=(100, 80, 50, 255), width=2)
+        draw.polygon([(flag_x, flag_y), (flag_x+12, flag_y+4), (flag_x, flag_y+8)], fill=(200, 50, 50, 255))
     
     return img
 
-def create_tree_sprite(size=64):
-    """Generate tree sprites."""
+def create_tree_sprite(variant=0, size=64):
+    """Generate detailed tree sprite."""
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     cx, cy = size // 2, size // 2
     
     # Shadow
-    draw.ellipse([cx - size//4, cy + size//6, cx + size//4, cy + size//4], fill=(0, 0, 0, 30))
+    draw.ellipse([cx - size//3, cy + size//5, cx + size//3, cy + size//4], fill=(0, 0, 0, 30))
     
     # Trunk
-    draw.rectangle([cx - 3, cy - 5, cx + 3, cy + size//4], fill=(100, 65, 30, 255))
+    trunk_w = 6 + variant * 2
+    draw.rectangle([cx - trunk_w//2, cy - 4, cx + trunk_w//2, cy + size//4], fill=(90, 60, 25, 255))
+    draw.rectangle([cx - trunk_w//4, cy - 4, cx + trunk_w//4, cy + size//4], fill=(110, 75, 35, 180))
     
     # Foliage layers
-    colors = [(40, 120, 40, 255), (50, 140, 50, 240), (60, 160, 60, 220)]
-    for i, c in enumerate(colors):
-        r = size//4 - i*4
-        draw.ellipse([cx - r, cy - size//3 - 5 + i*8, cx + r, cy - size//6 + i*8], fill=c)
+    foliage_colors = [
+        [(40, 100, 35), (50, 120, 40), (60, 140, 50)],
+        [(35, 90, 40), (45, 110, 45), (55, 130, 55)],
+        [(45, 110, 30), (55, 130, 40), (65, 150, 50)],
+    ]
+    colors = foliage_colors[variant % 3]
+    
+    # Bottom layer
+    r1 = size // 3 + variant * 2
+    draw.ellipse([cx - r1, cy - 5, cx + r1, cy + 15], fill=colors[2] + (255,))
+    # Middle layer
+    r2 = r1 - 5
+    draw.ellipse([cx - r2, cy - 12, cx + r2, cy + 5], fill=colors[1] + (255,))
+    # Top layer
+    r3 = r2 - 6
+    draw.ellipse([cx - r3, cy - 20, cx + r3, cy - 2], fill=colors[0] + (255,))
     
     # Highlight
-    draw.ellipse([cx - 5, cy - size//3 - 2, cx + 3, cy - size//4], fill=(100, 200, 100, 120))
+    draw.ellipse([cx - 4, cy - 18, cx + 2, cy - 10], fill=(120, 200, 80, 120))
     
     return img
 
-def save_all_sprites():
+def generate_all():
     """Generate all game sprites."""
-    print("Generating character sprites...")
-    save_character_sheet()
-    
-    print("\nGenerating building sprites...")
-    buildings = [
-        ("castle", (130, 80, 40), (180, 50, 50)),
-        ("barracks", (150, 90, 50), (180, 100, 60)),
-        ("archery", (120, 80, 40), (170, 120, 70)),
-        ("stable", (140, 95, 45), (160, 130, 80)),
-        ("wall", (120, 100, 70), (100, 90, 60)),
-        ("tower_arrow", (130, 85, 45), (160, 50, 50)),
+    unit_configs = [
+        ("hero", "player", (240, 170, 30), None, None, True, True),
+        ("warrior", "player", (180, 100, 50), (160, 130, 100), (190, 190, 210), True, False),
+        ("archer", "player", (80, 150, 80), (130, 100, 60), (160, 90, 30), False, False),
+        ("cavalry", "player", (200, 130, 50), (150, 120, 80), (190, 190, 210), True, False),
+        ("villager", "player", (150, 100, 70), (130, 110, 80), (160, 120, 60), False, False),
+        ("artisan", "player", (180, 150, 50), (160, 140, 70), (210, 190, 60), False, False),
     ]
-    for name, bc, rc in buildings:
-        img = create_building_sprite(name, bc, rc)
-        path = os.path.join(SPRITE_DIR, f"building_{name}.png")
-        img.save(path)
-        print(f"  ✅ building_{name}.png")
     
-    print("\nGenerating tree sprites...")
-    for i in range(3):
-        img = create_tree_sprite()
-        path = os.path.join(SPRITE_DIR, f"tree_{i}.png")
-        img.save(path)
-        print(f"  ✅ tree_{i}.png")
+    buildings = ["castle", "barracks", "archery", "stable", "wall", "tower_arrow"]
+    
+    print("Generating characters...")
+    for name, team, bc, ac, wc, helm, hero in unit_configs:
+        img = create_unit_sprite(name, team, bc, ac, wc, helm, hero)
+        img.save(os.path.join(SPRITE_DIR, f"{name}.png"))
+        print(f"  ✅ {name}.png")
+        
+        img_e = create_unit_sprite(name, "enemy", bc, ac, wc, helm, False)
+        img_e.save(os.path.join(SPRITE_DIR, f"enemy_{name}.png"))
+        print(f"  ✅ enemy_{name}.png")
+    
+    print("\nGenerating buildings...")
+    for b in buildings:
+        img = create_building_sprite(b)
+        img.save(os.path.join(SPRITE_DIR, f"building_{b}.png"))
+        print(f"  ✅ building_{b}.png")
+    
+    print("\nGenerating trees...")
+    for v in range(3):
+        img = create_tree_sprite(v)
+        img.save(os.path.join(SPRITE_DIR, f"tree_{v}.png"))
+        print(f"  ✅ tree_{v}.png")
+    
+    print(f"\nTotal: {len(os.listdir(SPRITE_DIR))} sprites")
 
 if __name__ == "__main__":
-    save_all_sprites()
-    print(f"\nAll sprites saved to {SPRITE_DIR}/")
-    print("Total files:", len(os.listdir(SPRITE_DIR)))
-
-if __name__ == "__main__":
-    print("Generating sprites...")
-    save_character_sheet()
-    print(f"\nAll sprites saved to {SPRITE_DIR}/")
-    print("Total files:", len(os.listdir(SPRITE_DIR)))
+    generate_all()

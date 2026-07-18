@@ -253,14 +253,6 @@ func _make_entity(type, pos, icon, color, hp, atk):
 	ent_renderer.is_hero = (type == "hero")
 	ents_node.add_child(ent_renderer)
 	
-	# Area2D for clicks
-	var area = Area2D.new()
-	var shape = RectangleShape2D.new()
-	shape.size = Vector2(32, 36)
-	area.collision_layer = 1; area.collision_mask = 0
-	var col = CollisionShape2D.new(); col.shape = shape; area.add_child(col)
-	ent_renderer.add_child(area)
-	
 	# HP text overlay
 	var hp_label = Label.new()
 	hp_label.name = "HPLabel"
@@ -270,13 +262,8 @@ func _make_entity(type, pos, icon, color, hp, atk):
 	hp_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ent_renderer.add_child(hp_label)
 	
-	var data = {"type": type, "node": ent_renderer, "pos": pos, "target_pos": pos, "hp": hp, "max_hp": hp, "atk": atk, "moving": false, "task": "idle", "gather_target": null, "anim_time": rng.randf() * 100, "renderer": ent_renderer, "area": area, "hp_label": hp_label}
+	var data = {"type": type, "node": ent_renderer, "pos": pos, "target_pos": pos, "hp": hp, "max_hp": hp, "atk": atk, "moving": false, "task": "idle", "gather_target": null, "anim_time": rng.randf() * 100, "renderer": ent_renderer, "hp_label": hp_label}
 	entities.append(data)
-	var ent_idx = entities.size() - 1
-	area.input_event.connect(func(_vp, event, _si):
-		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-			if ent_idx >= 0 and ent_idx < entities.size():
-				_select_entity(entities[ent_idx]))
 
 # ═══════════════════════════════════════════════
 #  HUD
@@ -679,21 +666,16 @@ func _select_entity(e):
 		if e.get("renderer"): e["renderer"].selected = true
 		selected.append(e); _show_info(e)
 
+func _screen_to_world(screen_pos: Vector2) -> Vector2:
+	return (screen_pos + cam - Vector2(640.0 / zoom_level, 360.0 / zoom_level)) / zoom_level
+
 func _input(event):
 	if show_menu: return
 	
-	# Left-click: select unit by proximity
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		var wp = event.position + cam - Vector2(640, 360)
-		if wp.x >= 0 and wp.x < WORLD_W and wp.y >= 0 and wp.y < WORLD_H:
-			_select_at(wp)
-			get_viewport().set_input_as_handled()
-			return
-	
-	# Building placement mode
+	# Building placement mode (checked FIRST)
 	if placing_building and event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_RIGHT:
-			var wp = event.position + cam - Vector2(640, 360)
+			var wp = _screen_to_world(event.position)
 			if wp.x >= 50 and wp.x < WORLD_W - 50 and wp.y >= 50 and wp.y < WORLD_H - 50:
 				_confirm_building(placing_building, wp)
 			placing_building = null
@@ -702,6 +684,14 @@ func _input(event):
 		elif event.button_index == MOUSE_BUTTON_LEFT:
 			placing_building = null
 			_notify("Construccion cancelada")
+			get_viewport().set_input_as_handled()
+			return
+	
+	# Left-click: select unit by proximity
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		var wp = _screen_to_world(event.position)
+		if wp.x >= 0 and wp.x < WORLD_W and wp.y >= 0 and wp.y < WORLD_H:
+			_select_at(wp)
 			get_viewport().set_input_as_handled()
 			return
 	
@@ -714,7 +704,7 @@ func _input(event):
 	
 	# Right-click context actions
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT and selected.size() > 0:
-		var wp = event.position + cam - Vector2(640, 360)
+		var wp = _screen_to_world(event.position)
 		if wp.x >= 0 and wp.x < WORLD_W and wp.y >= 0 and wp.y < WORLD_H:
 			# Check if clicked on a resource (for villagers)
 			var clicked_res = null
