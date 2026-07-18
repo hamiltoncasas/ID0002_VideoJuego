@@ -13,16 +13,12 @@ var buildings = []
 var res_nodes = []
 var selected = []
 var show_menu = false
-var build_mode = false
 var placing_building = null
-var build_queue = []
 
 var game_res = {"gold": 200, "stone": 100, "food": 150, "wood": 150, "copper": 0, "bronze": 0, "diamond": 0, "leather": 0}
 
 @onready var world = $World
 @onready var ents_node = $World/Entities
-@onready var builds_node = $World/Buildings
-@onready var res_node = $World/Resources
 @onready var ui = $UI
 
 var rng = RandomNumberGenerator.new()
@@ -277,6 +273,16 @@ func _build_hud():
 	it.position = Vector2(20, 690); it.size = Vector2(1240, 25)
 	it.add_theme_font_size_override("font_size", 10); it.modulate = Color(0.7, 0.7, 0.5)
 	it.mouse_filter = Control.MOUSE_FILTER_IGNORE; ui.add_child(it)
+	
+	# Action buttons (Act0 = Construir, etc)
+	for i in 3:
+		var act = Button.new()
+		act.name = "Act" + str(i)
+		act.position = Vector2(480 + i * 90, 685); act.size = Vector2(80, 30)
+		act.visible = false; ui.add_child(act)
+	
+	# Connect Act0 to toggle build menu
+	ui.get_node("Act0").pressed.connect(_toggle_build_menu)
 
 func _build_minimap():
 	var bg = ColorRect.new()
@@ -613,16 +619,30 @@ func _show_info(e):
 	var names = {"hero": "🦸 Heroe", "villager": "👷 Aldeano", "artisan": "🔧 Artesano", "warrior": "⚔️ Guerrero", "archer": "🏹 Arquero", "cavalry": "🐎 Jinete"}
 	il.text = names.get(e["type"], e["type"]) + " | HP: " + str(e["hp"]) + "/" + str(e["max_hp"]) + " (" + str(ceil(float(e["hp"])/e["max_hp"]*100)) + "%) | ATK: " + str(e["atk"])
 	
-	# Hide build buttons
+	# Hide all build buttons first
 	for i in 6:
 		var b = ui.get_node("Build" + str(i))
 		if b: b.visible = false
 	
-	# Show build buttons for villager
+	# Hide all action buttons first
+	for i in 3:
+		var act = ui.get_node("Act" + str(i))
+		if act: act.visible = false
+	
+	# Show action buttons based on unit type
 	if e["type"] == "villager":
-		for i in 6:
-			var b = ui.get_node("Build" + str(i))
-			if b: b.visible = true
+		var act = ui.get_node("Act0")
+		if act:
+			act.visible = true
+			act.text = "🏗️ Construir"
+
+func _toggle_build_menu():
+	var vis = not ui.get_node("Build0").visible
+	for i in 6:
+		var b = ui.get_node("Build" + str(i))
+		if b: b.visible = vis
+	var it = ui.get_node("InfoText")
+	if it: it.text = "Selecciona un edificio para construir. Click derecho en el mapa para colocar." if vis else ""
 
 func _hide_info():
 	var ip = ui.get_node("InfoPanel")
