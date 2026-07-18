@@ -648,7 +648,9 @@ func _select_at(wp):
 	var nearest = null; var min_dist = 40.0
 	for e in entities:
 		if not is_instance_valid(e.get("node")): continue
-		var d = wp.distance_to(e["pos"])
+		# Entity absolute position = local pos + world offset
+		var abs_pos = e["pos"] + world.position
+		var d = wp.distance_to(abs_pos)
 		if d < min_dist: min_dist = d; nearest = e
 	
 	if nearest:
