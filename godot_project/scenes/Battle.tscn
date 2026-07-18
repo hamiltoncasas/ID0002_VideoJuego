@@ -1,0 +1,250 @@
+[gd_scene load_steps=2 format=3 uid="uid://db8o2l415t30v"]
+
+[ext_resource type="Script" path="res://scripts/Battle.gd" id="1"]
+
+[node name="Battle" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 0
+offset_top = 0
+offset_right = 1280
+offset_bottom = 720
+script = ExtResource("1")
+
+# Background
+[node name="Bg" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.1, 0.06, 0.04, 1)
+
+# Battlefield
+[node name="Field" type="ColorRect" parent="."]
+layout_mode = 1
+offset_left = 80
+offset_top = 55
+offset_right = 1200
+offset_bottom = 680
+color = Color(0.15, 0.12, 0.08, 0.5)
+
+# Lane rows
+[node name="Lanes" type="Node" parent="."]
+
+# Lane TOP
+[node name="Top" type="Node2D" parent="Lanes"]
+position = Vector2(90, 60)
+
+[node name="TopBg" type="ColorRect" parent="Lanes/Top"]
+offset_left = 0
+offset_top = 0
+offset_right = 1110
+offset_bottom = 195
+color = Color(0.15, 0.25, 0.1, 0.25)
+
+[node name="TopLabel" type="Label" parent="Lanes/Top"]
+offset_left = 5
+offset_top = 80
+offset_right = 95
+offset_bottom = 110
+theme_override_font_sizes/font_size = 14
+modulate = Color(0.4, 0.7, 0.3, 0.8)
+text = "TOP"
+
+[node name="TopDivider" type="ColorRect" parent="Lanes/Top"]
+offset_left = 555
+offset_top = 0
+offset_right = 558
+offset_bottom = 195
+color = Color(1, 1, 1, 0.05)
+
+[node name="TopUnits" type="Node" parent="Lanes/Top"]
+
+# Lane MID
+[node name="Mid" type="Node2D" parent="Lanes"]
+position = Vector2(90, 262)
+
+[node name="MidBg" type="ColorRect" parent="Lanes/Mid"]
+offset_left = 0
+offset_top = 0
+offset_right = 1110
+offset_bottom = 195
+color = Color(0.2, 0.15, 0.08, 0.25)
+
+[node name="MidLabel" type="Label" parent="Lanes/Mid"]
+offset_left = 5
+offset_top = 80
+offset_right = 95
+offset_bottom = 110
+theme_override_font_sizes/font_size = 14
+modulate = Color(0.7, 0.6, 0.2, 0.8)
+text = "MEDIO"
+
+[node name="MidDivider" type="ColorRect" parent="Lanes/Mid"]
+offset_left = 555
+offset_top = 0
+offset_right = 558
+offset_bottom = 195
+color = Color(1, 1, 1, 0.05)
+
+[node name="MidUnits" type="Node" parent="Lanes/Mid"]
+
+# Lane BOT
+[node name="Bot" type="Node2D" parent="Lanes"]
+position = Vector2(90, 464)
+
+[node name="BotBg" type="ColorRect" parent="Lanes/Bot"]
+offset_left = 0
+offset_top = 0
+offset_right = 1110
+offset_bottom = 195
+color = Color(0.1, 0.15, 0.2, 0.25)
+
+[node name="BotLabel" type="Label" parent="Lanes/Bot"]
+offset_left = 5
+offset_top = 80
+offset_right = 95
+offset_bottom = 110
+theme_override_font_sizes/font_size = 14
+modulate = Color(0.3, 0.4, 0.7, 0.8)
+text = "BOT"
+
+[node name="BotDivider" type="ColorRect" parent="Lanes/Bot"]
+offset_left = 555
+offset_top = 0
+offset_right = 558
+offset_bottom = 195
+color = Color(1, 1, 1, 0.05)
+
+[node name="BotUnits" type="Node" parent="Lanes/Bot"]
+
+# Castles
+[node name="PlayerCastle" type="ColorRect" parent="."]
+offset_left = 5
+offset_top = 55
+offset_right = 75
+offset_bottom = 675
+color = Color(0.1, 0.4, 0.15, 0.7)
+
+[node name="PlayerCastleLabel" type="Label" parent="PlayerCastle"]
+offset_left = 5
+offset_top = 290
+offset_right = 65
+offset_bottom = 330
+theme_override_font_sizes/font_size = 28
+horizontal_alignment = 1
+text = "🏰"
+
+[node name="PlayerCastleHP" type="ColorRect" parent="PlayerCastle"]
+offset_left = 5
+offset_top = 325
+offset_right = 65
+offset_bottom = 338
+color = Color(0.2, 0.8, 0.2, 0.8)
+
+[node name="EnemyCastle" type="ColorRect" parent="."]
+offset_left = 1205
+offset_top = 55
+offset_right = 1275
+offset_bottom = 675
+color = Color(0.4, 0.1, 0.1, 0.7)
+
+[node name="EnemyCastleLabel" type="Label" parent="EnemyCastle"]
+offset_left = 5
+offset_top = 290
+offset_right = 65
+offset_bottom = 330
+theme_override_font_sizes/font_size = 28
+horizontal_alignment = 1
+text = "🏰"
+
+[node name="EnemyCastleHP" type="ColorRect" parent="EnemyCastle"]
+offset_left = 5
+offset_top = 325
+offset_right = 65
+offset_bottom = 338
+color = Color(0.8, 0.2, 0.2, 0.8)
+
+# HUD
+[node name="HUD" type="ColorRect" parent="."]
+offset_left = 0
+offset_top = 0
+offset_right = 1280
+offset_bottom = 48
+color = Color(0, 0, 0, 0.85)
+
+[node name="GoldLabel" type="Label" parent="HUD"]
+offset_left = 15
+offset_top = 8
+offset_right = 150
+offset_bottom = 42
+theme_override_font_sizes/font_size = 18
+modulate = Color(1, 0.85, 0.2)
+text = "🪙 300"
+
+[node name="FoodLabel" type="Label" parent="HUD"]
+offset_left = 155
+offset_top = 8
+offset_right = 300
+offset_bottom = 42
+theme_override_font_sizes/font_size = 18
+modulate = Color(0.5, 0.9, 0.3)
+text = "🌾 100"
+
+[node name="WaveLabel" type="Label" parent="HUD"]
+offset_left = 500
+offset_top = 8
+offset_right = 780
+offset_bottom = 42
+theme_override_font_sizes/font_size = 18
+text = "⚔️ OLEADA 1"
+
+[node name="StatusLabel" type="Label" parent="HUD"]
+offset_left = 950
+offset_top = 8
+offset_right = 1260
+offset_bottom = 42
+theme_override_font_sizes/font_size = 14
+text = "PREPARACIÓN..."
+
+# Hero info panel
+[node name="HeroPanel" type="ColorRect" parent="."]
+offset_left = 10
+offset_top = 48
+offset_right = 1280
+offset_bottom = 55
+color = Color(0, 0, 0, 0.3)
+
+[node name="HeroNameLabel" type="Label" parent="HeroPanel"]
+offset_left = 10
+offset_top = 0
+offset_right = 300
+offset_bottom = 7
+theme_override_font_sizes/font_size = 8
+text = ""
+
+[node name="HeroHPLabel" type="Label" parent="HeroPanel"]
+offset_left = 300
+offset_top = 0
+offset_right = 500
+offset_bottom = 7
+theme_override_font_sizes/font_size = 8
+text = ""
+
+[node name="SkillLabel" type="Label" parent="HeroPanel"]
+offset_left = 500
+offset_top = 0
+offset_right = 900
+offset_bottom = 7
+theme_override_font_sizes/font_size = 8
+text = ""
+
+# Command tips
+[node name="Tips" type="Label" parent="."]
+offset_left = 10
+offset_top = 690
+offset_right = 800
+offset_bottom = 715
+theme_override_font_sizes/font_size = 9
+modulate = Color(0.5, 0.5, 0.5, 0.8)
+text = "[1]Guerrero [2]Arquero [3]Jinete [Q]Habilidad [Click]Seleccionar [Der]Mover [Espacio]Pausa"
