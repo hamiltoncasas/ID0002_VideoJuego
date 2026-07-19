@@ -462,8 +462,8 @@ func _select_at(wp):
 	selected.clear(); _hide_info()
 	var nearest=null; var md=45.0
 	for e in entities:
-		if not is_instance_valid(e["node"]): continue
-		var abs_pos=e["pos"]+world.position; var d=wp.distance_to(abs_pos)
+		if not is_instance_valid(e.get("node")): continue
+		var d=wp.distance_to(e["pos"])
 		if d<md: md=d; nearest=e
 	if nearest: _select_entity(nearest); return
 	for b in buildings:
