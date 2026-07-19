@@ -188,9 +188,10 @@ func _build_hud():
 	zi.position=Vector2(1090,5); zi.size=Vector2(80,24); zi.mouse_filter=Control.MOUSE_FILTER_IGNORE; ui.add_child(zi)
 
 func _build_minimap():
-	var bg=ColorRect.new(); bg.name="MMBg"; bg.size=Vector2(164,164); bg.position=Vector2(1280-174,720-174)
+	var margin = 204; var offset=202
+	var bg=ColorRect.new(); bg.name="MMBg"; bg.size=Vector2(164,164); bg.position=Vector2(1280-margin,720-margin)
 	bg.color=Color(0.03,0.02,0.06,0.95); bg.mouse_filter=Control.MOUSE_FILTER_PASS; ui.add_child(bg)
-	var m=ColorRect.new(); m.name="MMap"; m.size=Vector2(160,160); m.position=Vector2(1280-172,720-172)
+	var m=ColorRect.new(); m.name="MMap"; m.size=Vector2(160,160); m.position=Vector2(1280-offset,720-offset)
 	m.color=Color(0.08,0.18,0.05); m.mouse_filter=Control.MOUSE_FILTER_IGNORE; ui.add_child(m)
 	var cc=ColorRect.new(); cc.name="MMCam"; cc.size=Vector2(50,30)
 	cc.color=Color(1,1,1,0.15); cc.mouse_filter=Control.MOUSE_FILTER_IGNORE; ui.add_child(cc)
@@ -331,8 +332,8 @@ func _input(event):
 	# Minimap click navigation
 	if event is InputEventMouseButton and event.pressed and event.button_index==MOUSE_BUTTON_LEFT:
 		var mx=event.position.x; var my=event.position.y
-		if mx>=1108 and mx<=1268 and my>=548 and my<=708:
-			var sx=(mx-1108)/160.0*WORLD_W; var sy=(my-548)/160.0*WORLD_H
+		if mx>=1078 and mx<=1238 and my>=518 and my<=678:
+			var sx=(mx-1078)/160.0*WORLD_W; var sy=(my-518)/160.0*WORLD_H
 			cam_target=Vector2(clamp(sx,320,WORLD_W-320),clamp(sy,180,WORLD_H-180))
 			get_viewport().set_input_as_handled(); return
 	
