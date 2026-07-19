@@ -414,11 +414,19 @@ func _show_multi_info():
 func _select_building(b):
 	selected_building=b
 	var ip=ui.get_node("InfoPanel"); var il=ui.get_node("InfoLabel"); ip.visible=true
-	var names={"castle":"🏰 Castillo","barracks":"⚔ Cuartel","archery":"🏹 Arqueria","stable":"🐎 Caballeriza","siege":"💣 Asedio","wall":"🧱 Muralla","gate":"🚪 Puerta","house":"🏠 Casa","tower_arrow":"🗼 T.Flechas","tower_stone":"🏰 T.Piedra","castle_defense":"🏯 C.Defensa","market":"🏪 Mercado","church":"⛪ Iglesia","forge":"🔨 Forja"}
+	var names={"castle":"🏰 Castillo","barracks":"⚔ Cuartel","archery":"🏹 Arqueria","stable":"🐎 Caballeriza","siege":"💣 Asedio","wall":"🧱 Muralla","gate":"🚪 Puerta","house":"🏠 Casa","tower_arrow":"🗼 T.Flechas","tower_stone":"🏰 T.Piedra","castle_defense":"🏯 C.Defensa","market":"🏪 Mercado","church":"⛪ Iglesia","forge":"🔨 Forja","mill":"🏭 Molino","shipyard":"🚢 Astillero"}
 	il.text=names.get(b["type"],b["type"])+" | HP:"+str(b["hp"])+"/"+str(b["max_hp"])
 	for i in range(13): var btn=ui.get_node("Build"+str(i)); if btn: btn.visible=false
 	for i in 3: var act=ui.get_node("Act"+str(i)); if act: act.visible=false
-	var bu={"barracks":[["Guerrero","50🪙"]],"archery":[["Arquero","80🪙"]],"stable":[["Jinete","120🪙"]],"siege":[["Ariete","200🪙"]]}
+	var bu={"barracks":[["Guerrero","50🪙"],["Espadachin","100🪙"]],"archery":[["Arquero","80🪙"],["Arquero Largo","120🪙"]],"stable":[["Jinete","120🪙"],["Jinete Pesado","200🪙"]],"siege":[["Ariete","200🪙"],["Catapulta","300🪙"]],"shipyard":[["Barco","150🪙"]]}
+	if b["type"]=="church":
+		for i in [0,1]:
+			var act=ui.get_node("Act"+str(i))
+			if act: act.visible=true; act.text=["✨ Revivir","💚 Sanar"][i]
+	if b["type"]=="forge":
+		for i in [0,1]:
+			var act=ui.get_node("Act"+str(i))
+			if act: act.visible=true; act.text=["⚔ +ATK(100🪙)","🛡 +DEF(80🪙)"][i]
 	if bu.has(b["type"]):
 		var units=bu[b["type"]]
 		for i in 3:
