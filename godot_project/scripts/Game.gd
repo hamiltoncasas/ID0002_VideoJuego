@@ -22,21 +22,33 @@ func _ready():
 
 # ════════════════════════════ TERRAIN ════════════════════════════
 func _gen_terrain():
+	# Base sky/ground
 	var sky = ColorRect.new(); sky.size = Vector2(WORLD_W, WORLD_H)
-	sky.color = Color(0.12, 0.25, 0.08); sky.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(sky)
-	# Organic patches
-	for i in 60:
-		var p = ColorRect.new()
-		p.size = Vector2(40+rng.randi()%200, 30+rng.randi()%150)
-		p.position = Vector2(rng.randi()%(WORLD_W-200), rng.randi()%(WORLD_H-150))
-		p.color = Color(0.15+rng.randf()*0.1, 0.28+rng.randf()*0.1, 0.08+rng.randf()*0.06, 0.12)
-		p.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(p)
-	# Lake
-	var lake = ColorRect.new(); lake.size = Vector2(350,250); lake.position = Vector2(2300,900)
-	lake.color = Color(0.1,0.28,0.45,0.35); lake.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(lake)
-	# Decorative
+	sky.color = Color(0.1, 0.22, 0.07); sky.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(sky)
+	# Organic grass patches with varied colors
 	for i in 80:
-		var d = Label.new(); d.text = ["🌿","🌱","🪨","🌲","🌾","🍃"][i%6]
+		var p = ColorRect.new()
+		p.size = Vector2(30+rng.randi()%250, 25+rng.randi()%180)
+		p.position = Vector2(rng.randi()%(WORLD_W-250), rng.randi()%(WORLD_H-180))
+		var g=rng.randf(); p.color = Color(0.12+g*0.1, 0.25+g*0.12, 0.06+g*0.06, 0.1+rng.randf()*0.1)
+		p.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(p)
+	# Rocky areas near stone resources
+	for i in 15:
+		var p = ColorRect.new()
+		p.size = Vector2(40+rng.randi()%100, 30+rng.randi()%80)
+		p.position = Vector2(rng.randi()%(WORLD_W-150), rng.randi()%(WORLD_H-100))
+		p.color = Color(0.35,0.32,0.28,0.08); p.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(p)
+	# River through map
+	var river = ColorRect.new(); river.size = Vector2(50, WORLD_H)
+	river.position = Vector2(WORLD_W*0.35, 0)
+	river.color = Color(0.08,0.22,0.4,0.2); river.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(river)
+	# Lake
+	var lake = ColorRect.new(); lake.size = Vector2(350,250); lake.position = Vector2(2500,1200)
+	lake.color = Color(0.08,0.25,0.42,0.35); lake.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(lake)
+	# Decorative elements (trees, rocks, flowers)
+	var deco = ["🌿","🌱","🪨","🌲","🌾","🍃","🌻","🌸"]
+	for i in 100:
+		var d = Label.new(); d.text = deco[i%deco.size()]
 		d.add_theme_font_size_override("font_size", 5+rng.randi()%10)
 		d.position = Vector2(rng.randi()%WORLD_W, rng.randi()%WORLD_H)
 		d.modulate = Color(1,1,1,0.04+rng.randf()*0.08)
