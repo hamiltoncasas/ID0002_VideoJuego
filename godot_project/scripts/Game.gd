@@ -83,10 +83,10 @@ func _gen_buildings():
 	_make_building("archery", Vector2(300,WORLD_H/2+80))
 
 func _make_building(type, pos):
-	var colors={"castle":Color(0.5,0.3,0.15),"barracks":Color(0.45,0.2,0.1),"archery":Color(0.4,0.25,0.1),"stable":Color(0.45,0.3,0.12),"siege":Color(0.4,0.35,0.2),"wall":Color(0.5,0.4,0.3),"gate":Color(0.45,0.35,0.25),"house":Color(0.5,0.35,0.2),"tower_arrow":Color(0.5,0.3,0.2),"tower_stone":Color(0.4,0.35,0.3),"castle_defense":Color(0.4,0.25,0.15),"market":Color(0.55,0.4,0.15),"church":Color(0.6,0.5,0.3),"forge":Color(0.3,0.2,0.15)}
-	var icons={"castle":"🏰","barracks":"⚔","archery":"🏹","stable":"🐎","siege":"💣","wall":"🧱","gate":"🚪","house":"🏠","tower_arrow":"🗼","tower_stone":"🏰","castle_defense":"🏯","market":"🏪","church":"⛪","forge":"🔨"}
-	var sizes={"castle":Vector2(80,80),"barracks":Vector2(50,45),"archery":Vector2(45,42),"stable":Vector2(55,45),"siege":Vector2(50,45),"wall":Vector2(40,20),"gate":Vector2(40,20),"house":Vector2(40,40),"tower_arrow":Vector2(40,40),"tower_stone":Vector2(50,50),"castle_defense":Vector2(70,70),"market":Vector2(50,45),"church":Vector2(55,50),"forge":Vector2(50,40)}
-	var max_hp={"castle":5000,"barracks":1500,"archery":1200,"stable":1800,"siege":2000,"wall":2000,"gate":1500,"house":800,"tower_arrow":2500,"tower_stone":3500,"castle_defense":4000,"market":800,"church":1200,"forge":1000}
+	var colors={"castle":Color(0.5,0.3,0.15),"barracks":Color(0.45,0.2,0.1),"archery":Color(0.4,0.25,0.1),"stable":Color(0.45,0.3,0.12),"siege":Color(0.4,0.35,0.2),"wall":Color(0.5,0.4,0.3),"gate":Color(0.45,0.35,0.25),"house":Color(0.5,0.35,0.2),"tower_arrow":Color(0.5,0.3,0.2),"tower_stone":Color(0.4,0.35,0.3),"castle_defense":Color(0.4,0.25,0.15),"market":Color(0.55,0.4,0.15),"church":Color(0.6,0.5,0.3),"forge":Color(0.3,0.2,0.15),"mill":Color(0.55,0.4,0.2),"shipyard":Color(0.3,0.35,0.45)}
+	var icons={"castle":"🏰","barracks":"⚔","archery":"🏹","stable":"🐎","siege":"💣","wall":"🧱","gate":"🚪","house":"🏠","tower_arrow":"🗼","tower_stone":"🏰","castle_defense":"🏯","market":"🏪","church":"⛪","forge":"🔨","mill":"🏭","shipyard":"🚢"}
+	var sizes={"castle":Vector2(80,80),"barracks":Vector2(50,45),"archery":Vector2(45,42),"stable":Vector2(55,45),"siege":Vector2(50,45),"wall":Vector2(40,20),"gate":Vector2(40,20),"house":Vector2(40,40),"tower_arrow":Vector2(40,40),"tower_stone":Vector2(50,50),"castle_defense":Vector2(70,70),"market":Vector2(50,45),"church":Vector2(55,50),"forge":Vector2(50,40),"mill":Vector2(45,40),"shipyard":Vector2(60,45)}
+	var max_hp={"castle":5000,"barracks":1500,"archery":1200,"stable":1800,"siege":2000,"wall":2000,"gate":1500,"house":800,"tower_arrow":2500,"tower_stone":3500,"castle_defense":4000,"market":800,"church":1200,"forge":1000,"mill":900,"shipyard":1500}
 	var bnode=Node2D.new(); bnode.position=pos; world.add_child(bnode)
 	var body=ColorRect.new(); body.size=sizes.get(type,Vector2(50,50)); body.position=-body.size/2
 	body.color=colors.get(type,Color(0.3,0.2,0.1)); body.mouse_filter=Control.MOUSE_FILTER_IGNORE; bnode.add_child(body)
@@ -136,9 +136,12 @@ func _load_sprite(type):
 	return null
 
 func _spawn_enemies(wave_num):
-	for i in range(3+wave_num):
-		var pos=Vector2(3400,500+rng.randi()%3000)
-		_make_enemy("warrior",pos,Color(0.5,0.12,0.12),200+wave_num*50,15+wave_num*5)
+	var count=3+wave_num*Globals.difficulty*Globals.enemy_kingdoms
+	for ki in range(Globals.enemy_kingdoms):
+		var bx=2500+ki*800
+		for i in range(count):
+			var pos=Vector2(bx+rng.randi()%500,500+rng.randi()%4000)
+			_make_enemy("warrior",pos,Color(0.5,0.12,0.12),200+wave_num*50*Globals.difficulty,15+wave_num*5*Globals.difficulty)
 
 func _make_enemy(type, pos, color, hp, atk):
 	var ent=Node2D.new(); ent.position=pos; ent.z_index=100; ents_node.add_child(ent)
@@ -196,8 +199,12 @@ func _build_minimap():
 func _process(delta):
 	if show_menu: return
 	var mv=Vector2()
-	if key_left: mv.x-=1; if key_right: mv.x+=1; if key_up: mv.y-=1; if key_down: mv.y+=1
-	if not (key_left or key_right or key_up or key_down):
+	if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT): mv.x-=1
+	if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT): mv.x+=1
+	if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP): mv.y-=1
+	if Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN): mv.y+=1
+	var kb = mv.length()>0
+	if not kb:
 		var ms=get_global_mouse_position()
 		if ms.x<15: mv.x-=1; if ms.x>1265: mv.x+=1; if ms.y<42: mv.y-=1; if ms.y>710: mv.y+=1
 	if mv.length()>0:
@@ -328,14 +335,6 @@ func _input(event):
 			var sx=(mx-1108)/160.0*WORLD_W; var sy=(my-548)/160.0*WORLD_H
 			cam_target=Vector2(clamp(sx,320,WORLD_W-320),clamp(sy,180,WORLD_H-180))
 			get_viewport().set_input_as_handled(); return
-	
-	if event is InputEventKey:
-		var p=event.pressed
-		match event.keycode:
-			KEY_A, KEY_LEFT: key_left=p
-			KEY_D, KEY_RIGHT: key_right=p
-			KEY_W, KEY_UP: key_up=p
-			KEY_S, KEY_DOWN: key_down=p
 	
 	if placing_building and event is InputEventMouseButton and event.pressed:
 		if event.button_index==MOUSE_BUTTON_RIGHT:
