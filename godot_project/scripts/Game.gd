@@ -15,10 +15,16 @@ var game_res = {"gold": 300, "stone": 200, "food": 200, "wood": 200, "copper": 5
 
 @onready var world = $World; @onready var ents_node = $World/Entities; @onready var ui = $UI
 var rng = RandomNumberGenerator.new(); var hero_data = {}
+var astar: AStarGrid2D
 
 func _ready():
 	hero_data = Globals.get_hero(Globals.selected_hero_id)
 	cam = Vector2(500, 1800); cam_target = Vector2(500, 1800)
+	# Setup AStar pathfinding
+	astar = AStarGrid2D.new()
+	astar.region = Rect2i(0, 0, WORLD_W/20, WORLD_H/20)
+	astar.cell_size = Vector2(20, 20)
+	astar.update()
 	_gen_terrain(); _gen_resources(); _gen_buildings(); _spawn_units()
 	_build_hud(); _build_minimap()
 
@@ -131,6 +137,12 @@ func _make_building(type, pos):
 		var lbl=Label.new(); lbl.text=icons.get(type,"🏗"); lbl.add_theme_font_size_override("font_size",22)
 		lbl.position=Vector2(-15,-12); lbl.size=Vector2(40,40); lbl.mouse_filter=Control.MOUSE_FILTER_IGNORE; bnode.add_child(lbl)
 	buildings.append({"type":type,"node":bnode,"pos":pos,"hp":max_hp.get(type,1000),"max_hp":max_hp.get(type,1000)})
+	# Mark as obstacle in pathfinding
+	var gx = int(pos.x/20); var gy = int(pos.y/20)
+	var sz = sizes.get(type, Vector2(50,50))
+	for dx in range(-int(sz.x/40), int(sz.x/40)+1):
+		for dy in range(-int(sz.y/40), int(sz.y/40)+1):
+			astar.set_point_solid(Vector2i(gx+dx, gy+dy))
 
 func _spawn_units():
 	var cp = Vector2(400,WORLD_H/2-40)
@@ -235,6 +247,8 @@ func _build_hud():
 	zi.position=Vector2(1090,5); zi.size=Vector2(80,24); zi.mouse_filter=Control.MOUSE_FILTER_IGNORE; ui.add_child(zi)
 	var fl=Label.new(); fl.name="ForgeLevel"; fl.text="⚔1 🛡1"; fl.add_theme_font_size_override("font_size",9)
 	fl.position=Vector2(980,5); fl.size=Vector2(100,24); fl.modulate=Color(1,0.9,0.5); fl.mouse_filter=Control.MOUSE_FILTER_IGNORE; ui.add_child(fl)
+	# Sound player
+	var snd = AudioStreamPlayer.new(); snd.name="SFX"; ui.add_child(snd)
 
 func _build_minimap():
 	var margin = 204; var offset=202
@@ -290,7 +304,17 @@ func _process(delta):
 					var res=e["gather_target"]
 					if res["amount"]>0: _do_gather(e,res)
 			else:
-				d=d.normalized(); e["pos"]+=d*200*delta; e["node"].position=e["pos"]
+				# Use pathfinding
+				var from_cell = Vector2i(int(e["pos"].x/20), int(e["pos"].y/20))
+				var to_cell = Vector2i(int(e["target_pos"].x/20), int(e["target_pos"].y/20))
+				var path = astar.get_id_path(from_cell, to_cell)
+				if path.size() > 1:
+					var next_grid = path[1]
+					var next_world = Vector2(next_grid.x*20 + 10, next_grid.y*20 + 10)
+					d = (next_world - e["pos"]).normalized()
+				else:
+					d = d.normalized()
+				e["pos"] += d * 200 * delta; e["node"].position = e["pos"]
 				e["node"].position.y += sin(e["anim_time"]*12) * 2
 		else:
 			e["node"].position.y = e["pos"].y + sin(e["anim_time"]*2) * 0.8
@@ -633,6 +657,15 @@ func _do_save(slot):
 func _main_menu(): get_tree().change_scene_to_file("res://scenes/ModeSelect.tscn")
 
 func _notify(txt):
+	var snd = ui.get_node_or_null("SFX")
+	if snd:
+		var gen = AudioStreamGenerator.new()
+		gen.mix_rate = 8000; gen.buffer_length = 0.05
+		snd.stream = gen; snd.play()
+		var pb = snd.get_stream_playback()
+		if pb:
+			for i in range(200):
+				pb.push_frame(Vector2(sin(i*0.3)*0.15, sin(i*0.3)*0.15))
 	var n=Label.new(); n.text=txt; n.add_theme_font_size_override("font_size",14)
 	n.position=Vector2(440,350); n.size=Vector2(400,30); n.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; n.modulate=Color(1,0.85,0.3)
 	ui.add_child(n); create_tween().tween_property(n,"modulate:a",0.0,2.0).set_delay(1.5)
