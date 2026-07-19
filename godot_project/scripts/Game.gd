@@ -7,7 +7,8 @@ var cam_speed = 400.0; var zoom_level = 1.0; var zoom_target = 1.0
 var entities = []; var enemies = []; var buildings = []; var res_nodes = []
 var selected = []; var show_menu = false; var placing_building = null
 var selected_building = null
-var key_left = false; var key_right = false; var key_up = false; var key_down = false
+var forge_atk_level = 1
+var forge_def_level = 1
 
 var game_res = {"gold": 300, "stone": 200, "food": 200, "wood": 200, "copper": 50, "bronze": 0, "diamond": 0, "leather": 0}
 
