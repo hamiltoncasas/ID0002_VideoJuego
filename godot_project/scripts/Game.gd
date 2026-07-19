@@ -80,7 +80,7 @@ func _gen_resources():
 	for d in defs:
 		for i in range(d[1]):
 			var pos = Vector2(100+rng.randi()%(WORLD_W-200),100+rng.randi()%(WORLD_H-200))
-				var tex=null
+			var tex=null
 			if d[0]=="tree": tex=_load_sprite("tree_"+str(i%4))
 			if tex:
 				var spr=Sprite2D.new(); spr.texture=tex; spr.centered=true; spr.scale=Vector2(0.8,0.8); spr.position=pos; world.add_child(spr)
