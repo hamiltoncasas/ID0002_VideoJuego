@@ -272,4 +272,27 @@ func _select(idx):
 			card.modulate = Color(0.85, 0.85, 0.85)
 
 func _start():
+	# Show difficulty/kingdom selection before starting game
+	var overlay=ColorRect.new(); overlay.size=Vector2(1280,720); overlay.color=Color(0,0,0,0.75); add_child(overlay)
+	var panel=ColorRect.new(); panel.size=Vector2(500,350); panel.position=Vector2(390,185); panel.color=Color(0.08,0.05,0.15,0.95); overlay.add_child(panel)
+	var t=Label.new(); t.text="CONFIGURAR PARTIDA"; t.add_theme_font_size_override("font_size",22)
+	t.position=Vector2(50,20); t.size=Vector2(400,30); t.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; panel.add_child(t)
+	
+	# Difficulty
+	var dl=Label.new(); dl.text="Dificultad:"; dl.add_theme_font_size_override("font_size",14)
+	dl.position=Vector2(50,70); dl.size=Vector2(400,20); panel.add_child(dl)
+	for i in 3:
+		var btn=Button.new(); btn.text=["Facil","Normal","Dificil"][i]; btn.position=Vector2(50+i*150,100); btn.size=Vector2(120,35)
+		panel.add_child(btn)
+		var di=i+1; btn.pressed.connect(func(): Globals.difficulty=di; _start_game())
+	
+	# Enemy kingdoms
+	var kl=Label.new(); kl.text="Reinos enemigos:"; kl.add_theme_font_size_override("font_size",14)
+	kl.position=Vector2(50,160); kl.size=Vector2(400,20); panel.add_child(kl)
+	for i in range(1,5):
+		var btn=Button.new(); btn.text=str(i); btn.position=Vector2(50+(i-1)*120,190); btn.size=Vector2(100,35)
+		panel.add_child(btn)
+		var ki=i; btn.pressed.connect(func(): Globals.enemy_kingdoms=ki; _start_game())
+
+func _start_game():
 	get_tree().change_scene_to_file("res://scenes/Game.tscn")

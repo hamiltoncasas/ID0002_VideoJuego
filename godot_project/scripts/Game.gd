@@ -397,12 +397,6 @@ func _select_building(b):
 		for i in 3:
 			var act=ui.get_node("Act"+str(i))
 			if act and i<units.size(): act.visible=true; act.text=units[i][0]+"\n"+units[i][1]
-	var ip=ui.get_node("InfoPanel"); var il=ui.get_node("InfoLabel"); ip.visible=true
-	il.text=str(selected.size())+" unidades seleccionadas"
-	for i in range(13): var b=ui.get_node("Build"+str(i)); if b: b.visible=false
-	var act=ui.get_node("Act0")
-	if act: act.visible=true; act.text="🏃 Mover todas"
-
 func _on_act(idx):
 	if selected_building:
 		# Train units from building
