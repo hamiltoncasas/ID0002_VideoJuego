@@ -1,7 +1,7 @@
 extends Control
 
 # ─── WORLD ───
-const WORLD_W = 4000; const WORLD_H = 4000
+const WORLD_W = 6000; const WORLD_H = 6000
 var cam = Vector2(640, 360); var cam_target = Vector2(640, 360)
 var cam_speed = 400.0; var zoom_level = 1.0; var zoom_target = 1.0
 var entities = []; var enemies = []; var buildings = []; var res_nodes = []
@@ -41,6 +41,14 @@ func _gen_terrain():
 		d.position = Vector2(rng.randi()%WORLD_W, rng.randi()%WORLD_H)
 		d.modulate = Color(1,1,1,0.04+rng.randf()*0.08)
 		d.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(d)
+	# Map borders (walls)
+	var bc = Color(0.25,0.2,0.15,0.3)
+	for x in range(0,WORLD_W,40):
+		var w=ColorRect.new(); w.size=Vector2(40,16); w.position=Vector2(x,0); w.color=bc; w.mouse_filter=Control.MOUSE_FILTER_IGNORE; world.add_child(w)
+		var w2=ColorRect.new(); w2.size=Vector2(40,16); w2.position=Vector2(x,WORLD_H-16); w2.color=bc; w2.mouse_filter=Control.MOUSE_FILTER_IGNORE; world.add_child(w2)
+	for y in range(0,WORLD_H,40):
+		var w=ColorRect.new(); w.size=Vector2(16,40); w.position=Vector2(0,y); w.color=bc; w.mouse_filter=Control.MOUSE_FILTER_IGNORE; world.add_child(w)
+		var w2=ColorRect.new(); w2.size=Vector2(16,40); w2.position=Vector2(WORLD_W-16,y); w2.color=bc; w2.mouse_filter=Control.MOUSE_FILTER_IGNORE; world.add_child(w2)
 
 func _gen_resources():
 	var defs = [["tree",40,Color(0.05,0.4,0.05),"🌲",50],["gold",5,Color(1,0.7,0.1),"💎",300],["stone",6,Color(0.5,0.5,0.5),"🪨",200]]
