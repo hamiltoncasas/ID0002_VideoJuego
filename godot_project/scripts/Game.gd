@@ -213,17 +213,22 @@ func _build_hud():
 	ip.color=Color(0,0,0,0.8); ip.visible=false; ip.mouse_filter=Control.MOUSE_FILTER_IGNORE; ui.add_child(ip)
 	var il=Label.new(); il.name="InfoLabel"; il.position=Vector2(20,625); il.size=Vector2(400,50)
 	il.add_theme_font_size_override("font_size",13); il.mouse_filter=Control.MOUSE_FILTER_IGNORE; ui.add_child(il)
-	var btypes=["wall","gate","house","barracks","archery","stable","siege","tower_arrow","tower_stone","castle_defense","market","church","forge"]
-	var bnames=["🧱Muro","🚪Puerta","🏠Casa","⚔Cuartel","🏹Arqueria","🐎Caballer","💣Asedio","🗼T.Flechas","🏰T.Piedra","🏯C.Defensa","🏪Mercado","⛪Iglesia","🔨Forja"]
-	for i in range(13):
+	var btypes=["wall","gate","house","barracks","archery","stable","siege","tower_arrow","tower_stone","castle_defense","market","church","forge","mill","shipyard"]
+	var bnames=["🧱Muro","🚪Puerta","🏠Casa","⚔Cuartel","🏹Arqueria","🐎Caballer","💣Asedio","🗼T.Flechas","🏰T.Piedra","🏯C.Defensa","🏪Mercado","⛪Iglesia","🔨Forja","🏭Molino","🚢Astillero"]
+	for i in range(15):
 		var b=Button.new(); b.name="Build"+str(i)
-		var row=floor(i/7); var col=i%7
-		b.position=Vector2(20+col*100, 665+row*28); b.size=Vector2(92, 24)
+		var row=floor(i/8); var col=i%8
+		b.position=Vector2(20+col*90, 665+row*24); b.size=Vector2(82, 22)
 		b.visible=false; b.mouse_filter=Control.MOUSE_FILTER_PASS; ui.add_child(b)
+		b.add_theme_color_override("font_color",Color(0.85,0.75,0.5))
+		b.add_theme_color_override("button_normal",Color(0.15,0.08,0.04,0.9))
+		b.add_theme_color_override("button_hover",Color(0.25,0.15,0.06,1.0))
 		var bidx=i; b.pressed.connect(func(): _place_building(btypes[bidx]))
 	for i in 3:
 		var act=Button.new(); act.name="Act"+str(i); act.position=Vector2(480+i*90,685); act.size=Vector2(80,30)
 		act.visible=false; ui.add_child(act); var aidx=i; act.pressed.connect(func(): _on_act(aidx))
+		act.add_theme_color_override("font_color",Color(0.85,0.75,0.5))
+		act.add_theme_color_override("button_normal",Color(0.15,0.08,0.04,0.9))
 	var it=Label.new(); it.name="InfoText"; it.position=Vector2(20,690); it.size=Vector2(1240,25)
 	it.add_theme_font_size_override("font_size",10); it.modulate=Color(0.7,0.7,0.5); it.mouse_filter=Control.MOUSE_FILTER_IGNORE; ui.add_child(it)
 	var zi=Label.new(); zi.name="ZoomIndicator"; zi.text="🔍 100%"; zi.add_theme_font_size_override("font_size",10)
@@ -294,17 +299,22 @@ func _process(delta):
 	for en in enemies:
 		if not is_instance_valid(en["node"]): continue
 		if en["hp"]<=0: _enemy_death(en); continue
-		var near=null; var md=600.0
+		var near=null; var near_b=null; var md=600.0
 		for e in entities:
 			if not is_instance_valid(e["node"]): continue
 			var d=en["pos"].distance_to(e["pos"])
 			if d<md: md=d; near=e
+		for b in buildings:
+			if not b["type"] in ["wall","gate"]: continue
+			var d=en["pos"].distance_to(b["pos"]); if d<md: md=d; near_b=b
 		if near and not en["moving"]:
 			en["target_pos"]=near["pos"]; en["moving"]=true
 		elif not near:
 			en["target_pos"]=Vector2(400,WORLD_H/2); en["moving"]=true
 		if near and en["pos"].distance_to(near["pos"])<30 and rng.randf()<0.02:
 			near["hp"]-=en["atk"]
+		if near_b and en["pos"].distance_to(near_b["pos"])<50 and rng.randf()<0.02:
+			near_b["hp"]-=en["atk"]
 		if en["moving"]:
 			var d=en["target_pos"]-en["pos"]; var dist=d.length()
 			if dist<5: en["moving"]=false; en["pos"]=en["target_pos"]
@@ -331,6 +341,10 @@ func _process(delta):
 				r["amount"]=30; r["type"]="wheat"
 				if r.get("node"): r["node"].color=Color(1,0.85,0.2,0.7)
 				if r.get("icon"): r["icon"].text="🌾"
+
+	# Destroy buildings with 0 HP
+	for b in buildings:
+		if b["hp"]<=0 and is_instance_valid(b["node"]): _destroy_building(b)
 
 	# Minimap
 	_update_minimap()
@@ -380,6 +394,10 @@ func _destroy_entity(e):
 
 func _enemy_death(en):
 	en["node"].queue_free(); enemies.erase(en); game_res["gold"]+=10; game_res["food"]+=5
+
+func _destroy_building(b):
+	b["node"].queue_free(); buildings.erase(b)
+	_notify("💥 "+b["type"].capitalize()+" destruido!")
 
 # ════════════════════════════ INPUT ════════════════════════════
 func _input(event):
@@ -451,7 +469,7 @@ func _show_info(e):
 	var names={"hero":"Heroe","villager":"Aldeano","artisan":"Artesano","warrior":"Guerrero","archer":"Arquero","cavalry":"Jinete"}
 	var ico={"hero":"🦸","villager":"👷","artisan":"🔧","warrior":"⚔","archer":"🏹","cavalry":"🐎"}
 	il.text=ico.get(e["type"],"?")+" "+names.get(e["type"],e["type"])+" | HP:"+str(e["hp"])+"/"+str(e["max_hp"])+" ("+str(ceil(float(e["hp"])/e["max_hp"]*100))+"%) | ATK:"+str(e["atk"])
-	for i in range(13): var b=ui.get_node("Build"+str(i)); if b: b.visible=false
+	for i in range(15): var b=ui.get_node("Build"+str(i)); if b: b.visible=false
 	for i in 3: var act=ui.get_node("Act"+str(i)); if act: act.visible=false
 	# Show actions based on unit type
 	var actions=[]
@@ -466,7 +484,7 @@ func _show_info(e):
 func _show_multi_info():
 	var ip=ui.get_node("InfoPanel"); var il=ui.get_node("InfoLabel"); ip.visible=true
 	il.text=str(selected.size())+" unidades seleccionadas"
-	for i in range(13): var b=ui.get_node("Build"+str(i)); if b: b.visible=false
+	for i in range(15): var b=ui.get_node("Build"+str(i)); if b: b.visible=false
 	var act=ui.get_node("Act0")
 	if act: act.visible=true; act.text="🏃 Mover todas"
 
@@ -475,7 +493,7 @@ func _select_building(b):
 	var ip=ui.get_node("InfoPanel"); var il=ui.get_node("InfoLabel"); ip.visible=true
 	var names={"castle":"🏰 Castillo","barracks":"⚔ Cuartel","archery":"🏹 Arqueria","stable":"🐎 Caballeriza","siege":"💣 Asedio","wall":"🧱 Muralla","gate":"🚪 Puerta","house":"🏠 Casa","tower_arrow":"🗼 T.Flechas","tower_stone":"🏰 T.Piedra","castle_defense":"🏯 C.Defensa","market":"🏪 Mercado","church":"⛪ Iglesia","forge":"🔨 Forja","mill":"🏭 Molino","shipyard":"🚢 Astillero"}
 	il.text=names.get(b["type"],b["type"])+" | HP:"+str(b["hp"])+"/"+str(b["max_hp"])
-	for i in range(13): var btn=ui.get_node("Build"+str(i)); if btn: btn.visible=false
+	for i in range(15): var btn=ui.get_node("Build"+str(i)); if btn: btn.visible=false
 	for i in 3: var act=ui.get_node("Act"+str(i)); if act: act.visible=false
 	var bu={"barracks":[["Guerrero","50🪙"],["Espadachin","100🪙"]],"archery":[["Arquero","80🪙"],["Arquero Largo","120🪙"]],"stable":[["Jinete","120🪙"],["Jinete Pesado","200🪙"]],"siege":[["Ariete","200🪙"],["Catapulta","300🪙"]],"shipyard":[["Barco","150🪙"]]}
 	if b["type"]=="church":
@@ -548,13 +566,13 @@ func _plant_crop(e):
 
 func _toggle_build_menu():
 	var vis=not ui.get_node("Build0").visible
-	for i in range(13): var b=ui.get_node("Build"+str(i)); if b: b.visible=vis
+	for i in range(15): var b=ui.get_node("Build"+str(i)); if b: b.visible=vis
 	var it=ui.get_node("InfoText")
 	if it: it.text="Selecciona un edificio. Click derecho en el mapa para colocar." if vis else ""
 
 func _hide_info():
 	var ip=ui.get_node("InfoPanel"); if ip: ip.visible=false
-	for i in range(13): var b=ui.get_node("Build"+str(i)); if b: b.visible=false
+	for i in range(15): var b=ui.get_node("Build"+str(i)); if b: b.visible=false
 	for i in 3: var act=ui.get_node("Act"+str(i)); if act: act.visible=false
 	selected_building=null
 
