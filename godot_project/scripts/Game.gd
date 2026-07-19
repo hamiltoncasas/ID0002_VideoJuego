@@ -290,7 +290,7 @@ func _process(delta):
 					var res=e["gather_target"]
 					if res["amount"]>0: _do_gather(e,res)
 			else:
-				d=d.normalized(); e["pos"]+=d*80*delta; e["node"].position=e["pos"]
+				d=d.normalized(); e["pos"]+=d*200*delta; e["node"].position=e["pos"]
 		if not e["moving"] and e["task"]=="idle":
 			if e["type"]=="villager" and rng.randf()<0.02: _ai_villager(e)
 			elif e["type"]=="artisan" and rng.randf()<0.01: e["target_pos"]=e["pos"]+Vector2(rng.randf()*300-150,rng.randf()*300-150); e["moving"]=true
@@ -403,14 +403,6 @@ func _destroy_building(b):
 func _input(event):
 	if show_menu: return
 	
-	# DEBUG: Test if clicks register at all
-	if event is InputEventMouseButton and event.pressed:
-		var test=ui.get_node_or_null("ClickTest")
-		if not test:
-			test=ColorRect.new(); test.name="ClickTest"; test.size=Vector2(60,60); test.position=Vector2(10,50)
-			test.color=Color(0.5,0,0,0.8); test.mouse_filter=Control.MOUSE_FILTER_IGNORE; ui.add_child(test)
-		test.color=Color(0,1,0,0.8) if event.button_index==MOUSE_BUTTON_LEFT else Color(1,0,0,0.8)
-	
 	# Minimap click navigation
 	if event is InputEventMouseButton and event.pressed and event.button_index==MOUSE_BUTTON_LEFT:
 		var mx=event.position.x; var my=event.position.y
@@ -427,33 +419,33 @@ func _input(event):
 		elif event.button_index==MOUSE_BUTTON_LEFT:
 			placing_building=null; get_viewport().set_input_as_handled(); return
 	
+	# Right-click: context menu for selected unit
+	if event is InputEventMouseButton and event.pressed and event.button_index==MOUSE_BUTTON_RIGHT and selected.size()>0:
+		var e=selected[0]
+		if e["type"]=="villager": _toggle_build_menu()
+		elif e["type"]=="artisan": _notify("Click izq en aliado para mejorar")
+		get_viewport().set_input_as_handled(); return
+	
+	# Left-click: select unit OR move selected OR attack/gather
 	if event is InputEventMouseButton and event.pressed and event.button_index==MOUSE_BUTTON_LEFT:
 		var wp=_sw(event.position)
 		if wp.x>=0 and wp.x<WORLD_W and wp.y>=0 and wp.y<WORLD_H:
-			_select_at(wp)
-			# Visual click feedback
-			var dot=ColorRect.new(); dot.size=Vector2(6,6); dot.position=event.position-Vector2(3,3)
-			dot.color=Color(1,1,0,0.7); dot.mouse_filter=Control.MOUSE_FILTER_IGNORE; ui.add_child(dot)
-			create_tween().tween_property(dot,"modulate:a",0.0,0.3)
-			create_tween().tween_callback(dot.queue_free).set_delay(0.3)
+			if selected.size()>0:
+				var ck_res=null; var ck_en=null
+				for r in res_nodes:
+					if r["amount"]>0 and wp.distance_to(r["pos"])<30: ck_res=r; break
+				for en in enemies:
+					if is_instance_valid(en["node"]) and wp.distance_to(en["pos"])<30: ck_en=en; break
+				for e in selected:
+					if e["type"]=="villager" and ck_res: e["task"]="gathering"; e["gather_target"]=ck_res; e["target_pos"]=ck_res["pos"]; e["moving"]=true
+					elif e["type"] in ["warrior","archer","cavalry","hero"] and ck_en: e["target_pos"]=ck_en["pos"]; e["moving"]=true
+					else: e["target_pos"]=wp; e["moving"]=true; e["task"]="idle"; e["gather_target"]=null
+			else: _select_at(wp)
 		get_viewport().set_input_as_handled(); return
 	
 	if event is InputEventMouseButton:
 		if event.button_index==MOUSE_BUTTON_WHEEL_UP: zoom_target=clamp(zoom_target+0.1,0.3,2.0)
 		if event.button_index==MOUSE_BUTTON_WHEEL_DOWN: zoom_target=clamp(zoom_target-0.1,0.3,2.0)
-	
-	if event is InputEventMouseButton and event.pressed and event.button_index==MOUSE_BUTTON_RIGHT and selected.size()>0:
-		var wp=_sw(event.position)
-		if wp.x>=0 and wp.x<WORLD_W and wp.y>=0 and wp.y<WORLD_H:
-			var ck_res=null; var ck_en=null
-			for r in res_nodes:
-				if r["amount"]>0 and wp.distance_to(r["pos"])<30: ck_res=r; break
-			for en in enemies:
-				if is_instance_valid(en["node"]) and wp.distance_to(en["pos"])<30: ck_en=en; break
-			for e in selected:
-				if e["type"]=="villager" and ck_res: e["task"]="gathering"; e["gather_target"]=ck_res; e["target_pos"]=ck_res["pos"]; e["moving"]=true
-				elif e["type"] in ["warrior","archer","cavalry","hero"] and ck_en: e["target_pos"]=ck_en["pos"]; e["moving"]=true
-				else: e["target_pos"]=wp; e["moving"]=true; e["task"]="idle"; e["gather_target"]=null
 
 func _sw(s): return (s+cam-Vector2(640.0/zoom_level,360.0/zoom_level))/zoom_level
 
