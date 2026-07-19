@@ -497,7 +497,7 @@ func _place_building(type):
 	placing_building=type; _notify("🔨 Click derecho en el mapa para colocar")
 
 func _confirm_building(type,pos):
-	var costs={"wall":{"stone":10},"gate":{"stone":15,"wood":10},"house":{"wood":50,"stone":20},"barracks":{"gold":100,"wood":100},"archery":{"gold":120,"wood":80,"stone":50},"stable":{"gold":150,"wood":60,"stone":30},"siege":{"gold":200,"wood":100,"stone":100},"tower_arrow":{"gold":80,"stone":100,"wood":40},"tower_stone":{"gold":150,"stone":200,"wood":60},"castle_defense":{"gold":300,"stone":300,"wood":100},"market":{"gold":120,"wood":80},"church":{"gold":100,"stone":80,"wood":50},"forge":{"gold":80,"stone":50,"wood":60}}
+	var costs={"wall":{"stone":10},"gate":{"stone":15,"wood":10},"house":{"wood":50,"stone":20},"barracks":{"gold":100,"wood":100},"archery":{"gold":120,"wood":80,"stone":50},"stable":{"gold":150,"wood":60,"stone":30},"siege":{"gold":200,"wood":100,"stone":100},"tower_arrow":{"gold":80,"stone":100,"wood":40},"tower_stone":{"gold":150,"stone":200,"wood":60},"castle_defense":{"gold":300,"stone":300,"wood":100},"market":{"gold":120,"wood":80},"church":{"gold":100,"stone":80,"wood":50},"forge":{"gold":80,"stone":50,"wood":60},"mill":{"gold":60,"wood":80,"stone":30},"shipyard":{"gold":200,"wood":300,"stone":50}}
 	var cost=costs.get(type,{})
 	for r in cost:
 		if game_res.get(r,0)<cost[r]: _notify("❌ Recursos insuficientes!"); return
