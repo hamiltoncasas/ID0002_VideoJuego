@@ -23,20 +23,23 @@ func _ready():
 # ════════════════════════════ TERRAIN ════════════════════════════
 func _gen_terrain():
 	var sky = ColorRect.new(); sky.size = Vector2(WORLD_W, WORLD_H)
-	sky.color = Color(0.1, 0.22, 0.06); sky.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(sky)
-	for i in 40:
-		var p = ColorRect.new()
-		p.size = Vector2(50+rng.randi()%150, 40+rng.randi()%120)
-		p.position = Vector2(rng.randi()%(WORLD_W-150), rng.randi()%(WORLD_H-120))
-		p.color = Color(0.15+rng.randf()*0.08, 0.25+rng.randf()*0.08, 0.1+rng.randf()*0.05, 0.15)
-		p.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(p)
-	var lake = ColorRect.new(); lake.size = Vector2(300,200); lake.position = Vector2(2400,1000)
-	lake.color = Color(0.12,0.3,0.5,0.3); lake.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(lake)
+	sky.color = Color(0.12, 0.25, 0.08); sky.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(sky)
+	# Organic patches
 	for i in 60:
-		var d = Label.new(); d.text = ["🌿","🌱","🪨","🌲"][i%4]
-		d.add_theme_font_size_override("font_size", 6+rng.randi()%8)
+		var p = ColorRect.new()
+		p.size = Vector2(40+rng.randi()%200, 30+rng.randi()%150)
+		p.position = Vector2(rng.randi()%(WORLD_W-200), rng.randi()%(WORLD_H-150))
+		p.color = Color(0.15+rng.randf()*0.1, 0.28+rng.randf()*0.1, 0.08+rng.randf()*0.06, 0.12)
+		p.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(p)
+	# Lake
+	var lake = ColorRect.new(); lake.size = Vector2(350,250); lake.position = Vector2(2300,900)
+	lake.color = Color(0.1,0.28,0.45,0.35); lake.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(lake)
+	# Decorative
+	for i in 80:
+		var d = Label.new(); d.text = ["🌿","🌱","🪨","🌲","🌾","🍃"][i%6]
+		d.add_theme_font_size_override("font_size", 5+rng.randi()%10)
 		d.position = Vector2(rng.randi()%WORLD_W, rng.randi()%WORLD_H)
-		d.modulate = Color(1,1,1,0.05+rng.randf()*0.06)
+		d.modulate = Color(1,1,1,0.04+rng.randf()*0.08)
 		d.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(d)
 
 func _gen_resources():
@@ -56,10 +59,10 @@ func _gen_buildings():
 	_make_building("archery", Vector2(300,WORLD_H/2+80))
 
 func _make_building(type, pos):
-	var colors={"castle":Color(0.5,0.3,0.15),"barracks":Color(0.45,0.2,0.1),"archery":Color(0.4,0.25,0.1),"stable":Color(0.45,0.3,0.12),"siege":Color(0.4,0.35,0.2)}
-	var icons={"castle":"🏰","barracks":"⚔","archery":"🏹","stable":"🐎","siege":"💣"}
-	var sizes={"castle":Vector2(80,80),"barracks":Vector2(50,45),"archery":Vector2(45,42),"stable":Vector2(55,45),"siege":Vector2(50,45)}
-	var max_hp={"castle":5000,"barracks":1500,"archery":1200,"stable":1800,"siege":2000}
+	var colors={"castle":Color(0.5,0.3,0.15),"barracks":Color(0.45,0.2,0.1),"archery":Color(0.4,0.25,0.1),"stable":Color(0.45,0.3,0.12),"siege":Color(0.4,0.35,0.2),"wall":Color(0.5,0.4,0.3),"gate":Color(0.45,0.35,0.25),"house":Color(0.5,0.35,0.2),"tower_arrow":Color(0.5,0.3,0.2),"tower_stone":Color(0.4,0.35,0.3),"castle_defense":Color(0.4,0.25,0.15),"market":Color(0.55,0.4,0.15),"church":Color(0.6,0.5,0.3),"forge":Color(0.3,0.2,0.15)}
+	var icons={"castle":"🏰","barracks":"⚔","archery":"🏹","stable":"🐎","siege":"💣","wall":"🧱","gate":"🚪","house":"🏠","tower_arrow":"🗼","tower_stone":"🏰","castle_defense":"🏯","market":"🏪","church":"⛪","forge":"🔨"}
+	var sizes={"castle":Vector2(80,80),"barracks":Vector2(50,45),"archery":Vector2(45,42),"stable":Vector2(55,45),"siege":Vector2(50,45),"wall":Vector2(40,20),"gate":Vector2(40,20),"house":Vector2(40,40),"tower_arrow":Vector2(40,40),"tower_stone":Vector2(50,50),"castle_defense":Vector2(70,70),"market":Vector2(50,45),"church":Vector2(55,50),"forge":Vector2(50,40)}
+	var max_hp={"castle":5000,"barracks":1500,"archery":1200,"stable":1800,"siege":2000,"wall":2000,"gate":1500,"house":800,"tower_arrow":2500,"tower_stone":3500,"castle_defense":4000,"market":800,"church":1200,"forge":1000}
 	var bnode=Node2D.new(); bnode.position=pos; world.add_child(bnode)
 	var body=ColorRect.new(); body.size=sizes.get(type,Vector2(50,50)); body.position=-body.size/2
 	body.color=colors.get(type,Color(0.3,0.2,0.1)); body.mouse_filter=Control.MOUSE_FILTER_IGNORE; bnode.add_child(body)
@@ -80,10 +83,16 @@ func _spawn_units():
 
 func _make_entity(type, pos, icon, color, hp, atk):
 	var ent=Node2D.new(); ent.position=pos; ent.z_index=100; ents_node.add_child(ent)
-	var body=ColorRect.new(); body.size=Vector2(24,24); body.position=Vector2(-12,-12)
-	body.color=color; body.mouse_filter=Control.MOUSE_FILTER_IGNORE; ent.add_child(body)
-	var lbl=Label.new(); lbl.text=icon; lbl.add_theme_font_size_override("font_size",18)
-	lbl.position=Vector2(-9,-26); lbl.size=Vector2(28,28); lbl.mouse_filter=Control.MOUSE_FILTER_IGNORE; ent.add_child(lbl)
+	# Try to load sprite PNG
+	var tex=_load_sprite(type)
+	if tex:
+		var spr=Sprite2D.new(); spr.texture=tex; spr.centered=true; spr.scale=Vector2(1.5,1.5); ent.add_child(spr)
+	else:
+		var body=ColorRect.new(); body.size=Vector2(24,24); body.position=Vector2(-12,-12)
+		body.color=color; body.mouse_filter=Control.MOUSE_FILTER_IGNORE; ent.add_child(body)
+		var lbl=Label.new(); lbl.text=icon; lbl.add_theme_font_size_override("font_size",18)
+		lbl.position=Vector2(-9,-26); lbl.size=Vector2(28,28); lbl.mouse_filter=Control.MOUSE_FILTER_IGNORE; ent.add_child(lbl)
+	# HP bar
 	var hb=ColorRect.new(); hb.size=Vector2(24,3); hb.position=Vector2(-12,-30)
 	hb.color=Color(0.15,0.03,0.03,0.7); hb.mouse_filter=Control.MOUSE_FILTER_IGNORE; ent.add_child(hb)
 	var hf=ColorRect.new(); hf.size=Vector2(24,3); hf.position=Vector2(-12,-30)
@@ -93,8 +102,14 @@ func _make_entity(type, pos, icon, color, hp, atk):
 	ht.mouse_filter=Control.MOUSE_FILTER_IGNORE; ent.add_child(ht)
 	var sel_ring=ColorRect.new(); sel_ring.size=Vector2(28,28); sel_ring.position=Vector2(-14,-14)
 	sel_ring.color=Color(0,0,0,0); sel_ring.mouse_filter=Control.MOUSE_FILTER_IGNORE; ent.add_child(sel_ring)
-	var data={"type":type,"node":ent,"pos":pos,"target_pos":pos,"hp":hp,"max_hp":hp,"atk":atk,"moving":false,"task":"idle","gather_target":null,"anim_time":rng.randf()*100,"body":body,"hp_fill":hf,"hp_text":ht,"sel_ring":sel_ring}
+	var data={"type":type,"node":ent,"pos":pos,"target_pos":pos,"hp":hp,"max_hp":hp,"atk":atk,"moving":false,"task":"idle","gather_target":null,"anim_time":rng.randf()*100,"hp_fill":hf,"hp_text":ht,"sel_ring":sel_ring}
 	entities.append(data)
+
+func _load_sprite(type):
+	var path="res://assets/sprites/"+type+".png"
+	var img=Image.new()
+	if img.load(path)==OK: return ImageTexture.create_from_image(img)
+	return null
 
 func _spawn_enemies(wave_num):
 	for i in range(3+wave_num):
@@ -103,10 +118,14 @@ func _spawn_enemies(wave_num):
 
 func _make_enemy(type, pos, color, hp, atk):
 	var ent=Node2D.new(); ent.position=pos; ent.z_index=100; ents_node.add_child(ent)
-	var body=ColorRect.new(); body.size=Vector2(22,22); body.position=Vector2(-11,-11)
-	body.color=color; body.mouse_filter=Control.MOUSE_FILTER_IGNORE; ent.add_child(body)
-	var lbl=Label.new(); lbl.text="⚔"; lbl.add_theme_font_size_override("font_size",14)
-	lbl.position=Vector2(-7,-24); lbl.size=Vector2(24,24); lbl.mouse_filter=Control.MOUSE_FILTER_IGNORE; ent.add_child(lbl)
+	var tex=_load_sprite("enemy_"+type)
+	if tex:
+		var spr=Sprite2D.new(); spr.texture=tex; spr.centered=true; spr.scale=Vector2(1.5,1.5); ent.add_child(spr)
+	else:
+		var body=ColorRect.new(); body.size=Vector2(22,22); body.position=Vector2(-11,-11)
+		body.color=color; body.mouse_filter=Control.MOUSE_FILTER_IGNORE; ent.add_child(body)
+		var lbl=Label.new(); lbl.text="⚔"; lbl.add_theme_font_size_override("font_size",14)
+		lbl.position=Vector2(-7,-24); lbl.size=Vector2(24,24); lbl.mouse_filter=Control.MOUSE_FILTER_IGNORE; ent.add_child(lbl)
 	var data={"type":type,"node":ent,"pos":pos,"target_pos":pos,"hp":hp,"max_hp":hp,"atk":atk,"moving":false,"task":"idle","anim_time":rng.randf()*100}
 	enemies.append(data)
 
@@ -125,10 +144,14 @@ func _build_hud():
 	ip.color=Color(0,0,0,0.8); ip.visible=false; ip.mouse_filter=Control.MOUSE_FILTER_IGNORE; ui.add_child(ip)
 	var il=Label.new(); il.name="InfoLabel"; il.position=Vector2(20,625); il.size=Vector2(400,50)
 	il.add_theme_font_size_override("font_size",13); il.mouse_filter=Control.MOUSE_FILTER_IGNORE; ui.add_child(il)
-	for i in 6:
-		var b=Button.new(); b.name="Build"+str(i); b.position=Vector2(20+i*115,670); b.size=Vector2(105,40)
+	var btypes=["wall","gate","house","barracks","archery","stable","siege","tower_arrow","tower_stone","castle_defense","market","church","forge"]
+	var bnames=["🧱Muro","🚪Puerta","🏠Casa","⚔Cuartel","🏹Arqueria","🐎Caballer","💣Asedio","🗼T.Flechas","🏰T.Piedra","🏯C.Defensa","🏪Mercado","⛪Iglesia","🔨Forja"]
+	for i in range(13):
+		var b=Button.new(); b.name="Build"+str(i)
+		var row=floor(i/7); var col=i%7
+		b.position=Vector2(20+col*100, 665+row*28); b.size=Vector2(92, 24)
 		b.visible=false; b.mouse_filter=Control.MOUSE_FILTER_PASS; ui.add_child(b)
-		var bidx=i; b.pressed.connect(func(): _place_building(["wall","barracks","archery","stable","siege","tower_arrow"][bidx]))
+		var bidx=i; b.pressed.connect(func(): _place_building(btypes[bidx]))
 	for i in 3:
 		var act=Button.new(); act.name="Act"+str(i); act.position=Vector2(480+i*90,685); act.size=Vector2(80,30)
 		act.visible=false; ui.add_child(act); var aidx=i; act.pressed.connect(func(): _on_act(aidx))
@@ -322,7 +345,7 @@ func _show_info(e):
 	var ip=ui.get_node("InfoPanel"); var il=ui.get_node("InfoLabel"); ip.visible=true
 	var names={"hero":"🦸 Heroe","villager":"👷 Aldeano","artisan":"🔧 Artesano","warrior":"⚔ Guerrero","archer":"🏹 Arquero","cavalry":"🐎 Jinete"}
 	il.text=names.get(e["type"],e["type"])+" | HP:"+str(e["hp"])+"/"+str(e["max_hp"])+"("+str(ceil(float(e["hp"])/e["max_hp"]*100))+"%) | ATK:"+str(e["atk"])
-	for i in 6: var b=ui.get_node("Build"+str(i)); if b: b.visible=false
+	for i in range(13): var b=ui.get_node("Build"+str(i)); if b: b.visible=false
 	for i in 3: var act=ui.get_node("Act"+str(i)); if act: act.visible=false
 	if e["type"]=="villager":
 		var act=ui.get_node("Act0")
@@ -333,7 +356,7 @@ func _select_building(b):
 	var ip=ui.get_node("InfoPanel"); var il=ui.get_node("InfoLabel"); ip.visible=true
 	var names={"castle":"🏰 Castillo","barracks":"⚔ Cuartel","archery":"🏹 Arqueria","stable":"🐎 Caballeriza","siege":"💣 Taller Asedio","wall":"🧱 Muralla","tower_arrow":"🗼 Torre"}
 	il.text=names.get(b["type"],b["type"])+" | HP:"+str(b["hp"])+"/"+str(b["max_hp"])
-	for i in 6: var btn=ui.get_node("Build"+str(i)); if btn: btn.visible=false
+	for i in range(13): var btn=ui.get_node("Build"+str(i)); if btn: btn.visible=false
 	for i in 3: var act=ui.get_node("Act"+str(i)); if act: act.visible=false
 	var bu={"barracks":[["Guerrero","50🪙25🌾"]],"archery":[["Arquero","80🪙30🪵"]],"stable":[["Jinete","120🪙40🌾"]],"siege":[["Ariete","200🪙150🪵"]]}
 	if bu.has(b["type"]):
@@ -361,13 +384,13 @@ func _on_act(idx):
 
 func _toggle_build_menu():
 	var vis=not ui.get_node("Build0").visible
-	for i in 6: var b=ui.get_node("Build"+str(i)); if b: b.visible=vis
+	for i in range(13): var b=ui.get_node("Build"+str(i)); if b: b.visible=vis
 	var it=ui.get_node("InfoText")
 	if it: it.text="Selecciona un edificio. Click derecho en el mapa para colocar." if vis else ""
 
 func _hide_info():
 	var ip=ui.get_node("InfoPanel"); if ip: ip.visible=false
-	for i in 6: var b=ui.get_node("Build"+str(i)); if b: b.visible=false
+	for i in range(13): var b=ui.get_node("Build"+str(i)); if b: b.visible=false
 	for i in 3: var act=ui.get_node("Act"+str(i)); if act: act.visible=false
 	selected_building=null
 
@@ -375,7 +398,7 @@ func _place_building(type):
 	placing_building=type; _notify("🔨 Click derecho en el mapa para colocar")
 
 func _confirm_building(type,pos):
-	var costs={"wall":{"stone":10},"barracks":{"gold":100,"wood":100},"archery":{"gold":120,"wood":80,"stone":50},"stable":{"gold":150,"wood":60,"stone":30},"siege":{"gold":200,"wood":100,"stone":100},"tower_arrow":{"gold":80,"stone":100,"wood":40}}
+	var costs={"wall":{"stone":10},"gate":{"stone":15,"wood":10},"house":{"wood":50,"stone":20},"barracks":{"gold":100,"wood":100},"archery":{"gold":120,"wood":80,"stone":50},"stable":{"gold":150,"wood":60,"stone":30},"siege":{"gold":200,"wood":100,"stone":100},"tower_arrow":{"gold":80,"stone":100,"wood":40},"tower_stone":{"gold":150,"stone":200,"wood":60},"castle_defense":{"gold":300,"stone":300,"wood":100},"market":{"gold":120,"wood":80},"church":{"gold":100,"stone":80,"wood":50},"forge":{"gold":80,"stone":50,"wood":60}}
 	var cost=costs.get(type,{})
 	for r in cost:
 		if game_res.get(r,0)<cost[r]: _notify("❌ Recursos insuficientes!"); return
