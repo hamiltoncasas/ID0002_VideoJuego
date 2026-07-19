@@ -7,6 +7,7 @@ var cam_speed = 400.0; var zoom_level = 1.0; var zoom_target = 1.0
 var entities = []; var enemies = []; var buildings = []; var res_nodes = []
 var selected = []; var show_menu = false; var placing_building = null
 var selected_building = null
+var key_left = false; var key_right = false; var key_up = false; var key_down = false
 var forge_atk_level = 1
 var forge_def_level = 1
 
@@ -227,6 +228,8 @@ func _build_hud():
 	it.add_theme_font_size_override("font_size",10); it.modulate=Color(0.7,0.7,0.5); it.mouse_filter=Control.MOUSE_FILTER_IGNORE; ui.add_child(it)
 	var zi=Label.new(); zi.name="ZoomIndicator"; zi.text="🔍 100%"; zi.add_theme_font_size_override("font_size",10)
 	zi.position=Vector2(1090,5); zi.size=Vector2(80,24); zi.mouse_filter=Control.MOUSE_FILTER_IGNORE; ui.add_child(zi)
+	var fl=Label.new(); fl.name="ForgeLevel"; fl.text="⚔1 🛡1"; fl.add_theme_font_size_override("font_size",9)
+	fl.position=Vector2(980,5); fl.size=Vector2(100,24); fl.modulate=Color(1,0.9,0.5); fl.mouse_filter=Control.MOUSE_FILTER_IGNORE; ui.add_child(fl)
 
 func _build_minimap():
 	var margin = 204; var offset=202
@@ -257,6 +260,8 @@ func _process(delta):
 	world.scale=Vector2(zoom_level,zoom_level); world.position=-cam+Vector2(640/zoom_level,360/zoom_level)
 	var zi=ui.get_node_or_null("ZoomIndicator")
 	if zi: zi.text="🔍 "+str(int(zoom_level*100))+"%"
+	var fl=ui.get_node_or_null("ForgeLevel")
+	if fl: fl.text="⚔"+str(forge_atk_level)+" 🛡"+str(forge_def_level)
 	var rkeys=["gold","stone","food","wood","copper","bronze","diamond","leather"]
 	var ricons=["🪙","🪨","🌾","🪵","🟤","🔶","💎","👜"]
 	for i in range(8):
