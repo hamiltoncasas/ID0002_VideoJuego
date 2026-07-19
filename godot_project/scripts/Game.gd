@@ -152,12 +152,16 @@ func _load_sprite(type):
 	return null
 
 func _spawn_enemies(wave_num):
-	var count=3+wave_num*Globals.difficulty*Globals.enemy_kingdoms
+	var types = ["warrior","archer","cavalry"]
+	var count = 3 + wave_num * Globals.difficulty * Globals.enemy_kingdoms
 	for ki in range(Globals.enemy_kingdoms):
-		var bx=2500+ki*800
+		var bx = 2500 + ki * 800
 		for i in range(count):
-			var pos=Vector2(bx+rng.randi()%500,500+rng.randi()%4000)
-			_make_enemy("warrior",pos,Color(0.5,0.12,0.12),200+wave_num*50*Globals.difficulty,15+wave_num*5*Globals.difficulty)
+			var t = types[i % types.size()]
+			var pos = Vector2(bx + rng.randi() % 500, 500 + rng.randi() % 4000)
+			var hp_val = 200 + wave_num * 50 * Globals.difficulty
+			var atk_val = 15 + wave_num * 5 * Globals.difficulty
+			_make_enemy(t, pos, Color(0.5, 0.12, 0.12), hp_val, atk_val)
 
 func _make_enemy(type, pos, color, hp, atk):
 	var ent=Node2D.new(); ent.position=pos; ent.z_index=100; ents_node.add_child(ent)
@@ -292,6 +296,15 @@ func _process(delta):
 			for en in enemies:
 				if not is_instance_valid(en.get("node")): continue
 				if b["pos"].distance_to(en["pos"])<200 and rng.randf()<0.02: en["hp"]-=15
+
+	# Crop growth
+	for r in res_nodes:
+		if r["type"]=="planted_crop" and r.get("growth",0)<100:
+			r["growth"]=r.get("growth",0)+delta*0.12
+			if r.get("growth",0)>=100:
+				r["amount"]=30; r["type"]="wheat"
+				if r.get("node"): r["node"].color=Color(1,0.85,0.2,0.7)
+				if r.get("icon"): r["icon"].text="🌾"
 
 	# Minimap
 	_update_minimap()
@@ -505,7 +518,7 @@ func _plant_crop(e):
 	r.color=Color(0.5,0.8,0.2,0.6); r.mouse_filter=Control.MOUSE_FILTER_IGNORE; world.add_child(r)
 	var l=Label.new(); l.text="🌱"; l.add_theme_font_size_override("font_size",12)
 	l.position=pos-Vector2(6,14); l.size=Vector2(24,24); l.mouse_filter=Control.MOUSE_FILTER_IGNORE; world.add_child(l)
-	res_nodes.append({"type":"planted_crop","pos":pos,"amount":30,"node":r,"renewable":false})
+	res_nodes.append({"type":"planted_crop","pos":pos,"amount":5,"node":r,"icon":l,"growth":0,"renewable":false})
 
 func _toggle_build_menu():
 	var vis=not ui.get_node("Build0").visible
