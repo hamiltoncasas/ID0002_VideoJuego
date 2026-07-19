@@ -420,7 +420,13 @@ func _input(event):
 	
 	if event is InputEventMouseButton and event.pressed and event.button_index==MOUSE_BUTTON_LEFT:
 		var wp=_sw(event.position)
-		if wp.x>=0 and wp.x<WORLD_W and wp.y>=0 and wp.y<WORLD_H: _select_at(wp)
+		if wp.x>=0 and wp.x<WORLD_W and wp.y>=0 and wp.y<WORLD_H:
+			_select_at(wp)
+			# Visual click feedback
+			var dot=ColorRect.new(); dot.size=Vector2(6,6); dot.position=event.position-Vector2(3,3)
+			dot.color=Color(1,1,0,0.7); dot.mouse_filter=Control.MOUSE_FILTER_IGNORE; ui.add_child(dot)
+			create_tween().tween_property(dot,"modulate:a",0.0,0.3)
+			create_tween().tween_callback(dot.queue_free).set_delay(0.3)
 		get_viewport().set_input_as_handled(); return
 	
 	if event is InputEventMouseButton:
@@ -445,7 +451,7 @@ func _sw(s): return (s+cam-Vector2(640.0/zoom_level,360.0/zoom_level))/zoom_leve
 func _select_at(wp):
 	for oe in entities: oe["sel"]=false
 	selected.clear(); _hide_info()
-	var nearest=null; var md=40.0
+	var nearest=null; var md=45.0
 	for e in entities:
 		if not is_instance_valid(e["node"]): continue
 		var abs_pos=e["pos"]+world.position; var d=wp.distance_to(abs_pos)
