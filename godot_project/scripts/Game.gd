@@ -45,6 +45,17 @@ func _gen_terrain():
 	# Lake
 	var lake = ColorRect.new(); lake.size = Vector2(350,250); lake.position = Vector2(2500,1200)
 	lake.color = Color(0.08,0.25,0.42,0.35); lake.mouse_filter = Control.MOUSE_FILTER_IGNORE; world.add_child(lake)
+	# Fish in lake/river
+	for i in range(10):
+		var fp=Vector2(2500+rng.randi()%350,1200+rng.randi()%250)
+		var fr=Label.new(); fr.text="🐟"; fr.add_theme_font_size_override("font_size",12)
+		fr.position=fp; fr.size=Vector2(20,20); fr.mouse_filter=Control.MOUSE_FILTER_IGNORE; world.add_child(fr)
+		res_nodes.append({"type":"fish","pos":fp,"amount":20+rng.randi()%15,"node":fr,"renewable":true})
+	for i in range(8):
+		var fp=Vector2(WORLD_W*0.35+rng.randi()%50,rng.randi()%WORLD_H)
+		var fr=Label.new(); fr.text="🐟"; fr.add_theme_font_size_override("font_size",10)
+		fr.position=fp; fr.size=Vector2(18,18); fr.mouse_filter=Control.MOUSE_FILTER_IGNORE; world.add_child(fr)
+		res_nodes.append({"type":"fish","pos":fp,"amount":15+rng.randi()%10,"node":fr,"renewable":true})
 	# Decorative elements (trees, rocks, flowers)
 	var deco = ["🌿","🌱","🪨","🌲","🌾","🍃","🌻","🌸"]
 	for i in 100:
@@ -342,8 +353,8 @@ func _ai_villager(e):
 func _do_gather(e,res):
 	if res["amount"]<=0: return
 	res["amount"]-=1
-	var rewards={"tree":"wood","gold":"gold","stone":"stone","deer":"food","wolf":"food","cow":"food","pig":"food","buffalo":"food","wheat":"food","potato":"food","corn":"food"}
-	var values={"tree":2,"gold":3,"stone":2,"deer":5,"wolf":3,"cow":6,"pig":4,"buffalo":8,"wheat":5,"potato":2,"corn":10}
+	var rewards={"tree":"wood","gold":"gold","stone":"stone","deer":"food","wolf":"food","cow":"food","pig":"food","buffalo":"food","wheat":"food","potato":"food","corn":"food","fish":"food","planted_crop":"food"}
+	var values={"tree":2,"gold":3,"stone":2,"deer":5,"wolf":3,"cow":6,"pig":4,"buffalo":8,"wheat":5,"potato":2,"corn":10,"fish":3,"planted_crop":5}
 	if rewards.has(res["type"]):
 		game_res[rewards[res["type"]]]+=values.get(res["type"],2)
 	# Check mills nearby for bonus
