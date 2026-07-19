@@ -291,6 +291,9 @@ func _process(delta):
 					if res["amount"]>0: _do_gather(e,res)
 			else:
 				d=d.normalized(); e["pos"]+=d*200*delta; e["node"].position=e["pos"]
+				e["node"].position.y += sin(e["anim_time"]*12) * 2
+		else:
+			e["node"].position.y = e["pos"].y + sin(e["anim_time"]*2) * 0.8
 		if not e["moving"] and e["task"]=="idle":
 			if e["type"]=="villager" and rng.randf()<0.02: _ai_villager(e)
 			elif e["type"]=="artisan" and rng.randf()<0.01: e["target_pos"]=e["pos"]+Vector2(rng.randf()*300-150,rng.randf()*300-150); e["moving"]=true
