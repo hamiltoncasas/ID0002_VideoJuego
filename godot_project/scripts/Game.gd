@@ -402,6 +402,15 @@ func _destroy_building(b):
 # ════════════════════════════ INPUT ════════════════════════════
 func _input(event):
 	if show_menu: return
+	
+	# DEBUG: Test if clicks register at all
+	if event is InputEventMouseButton and event.pressed:
+		var test=ui.get_node_or_null("ClickTest")
+		if not test:
+			test=ColorRect.new(); test.name="ClickTest"; test.size=Vector2(60,60); test.position=Vector2(10,50)
+			test.color=Color(0.5,0,0,0.8); test.mouse_filter=Control.MOUSE_FILTER_IGNORE; ui.add_child(test)
+		test.color=Color(0,1,0,0.8) if event.button_index==MOUSE_BUTTON_LEFT else Color(1,0,0,0.8)
+	
 	# Minimap click navigation
 	if event is InputEventMouseButton and event.pressed and event.button_index==MOUSE_BUTTON_LEFT:
 		var mx=event.position.x; var my=event.position.y
