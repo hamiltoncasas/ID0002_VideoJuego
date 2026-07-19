@@ -412,7 +412,7 @@ func _show_info(e):
 	for i in 3: var act=ui.get_node("Act"+str(i)); if act: act.visible=false
 	# Show actions based on unit type
 	var actions=[]
-	if e["type"]=="villager": actions=["🏗 Construir","🎯 Recolectar","🏃 Mover a"]
+	if e["type"]=="villager": actions=["🏗 Construir","🌱 Cultivar","🏃 Mover a"]
 	elif e["type"]=="artisan": actions=["🔧 Mejorar Unidad","🔨 Mejorar Arma","🏃 Mover a"]
 	elif e["type"] in ["warrior","archer","cavalry"]: actions=["⚔ Atacar","🗺 Explorar","🏃 Mover a"]
 	elif e["type"]=="hero": actions=["⚡ Habilidad","⚔ Atacar","🏃 Mover a"]
@@ -469,8 +469,8 @@ func _on_act(idx):
 	# Villager actions
 	if e["type"]=="villager":
 		if idx==0: _toggle_build_menu()
-		elif idx==1: _notify("Click derecho en recurso para recolectar")
-		elif idx==2: _notify("Click derecho en destino para mover")
+		elif idx==1: _plant_crop(e)
+		elif idx==2: _notify("Click derecho en destino")
 	# Artisan actions
 	elif e["type"]=="artisan":
 		if idx==0: _notify("Selecciona unidad aliada para mejorar (+5 ATK, -50 oro)")
@@ -492,6 +492,16 @@ func _use_hero_skill():
 		if not is_instance_valid(en.get("node")): continue
 		if e["pos"].distance_to(en["pos"])<200: en["hp"]-=e["atk"]*2
 	_notify("Habilidad del heroe activada!")
+
+func _plant_crop(e):
+	if game_res["food"]<10: _notify("Necesitas 10 comida para plantar"); return
+	game_res["food"]-=10
+	var pos=e["pos"]+Vector2(rng.randi()%40-20,rng.randi()%40-20)
+	var r=ColorRect.new(); r.size=Vector2(16,16); r.position=pos
+	r.color=Color(0.5,0.8,0.2,0.6); r.mouse_filter=Control.MOUSE_FILTER_IGNORE; world.add_child(r)
+	var l=Label.new(); l.text="🌱"; l.add_theme_font_size_override("font_size",12)
+	l.position=pos-Vector2(6,14); l.size=Vector2(24,24); l.mouse_filter=Control.MOUSE_FILTER_IGNORE; world.add_child(l)
+	res_nodes.append({"type":"planted_crop","pos":pos,"amount":30,"node":r,"renewable":false})
 
 func _toggle_build_menu():
 	var vis=not ui.get_node("Build0").visible
