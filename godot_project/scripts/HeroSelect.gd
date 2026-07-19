@@ -272,27 +272,50 @@ func _select(idx):
 			card.modulate = Color(0.85, 0.85, 0.85)
 
 func _start():
-	# Show difficulty/kingdom selection before starting game
-	var overlay=ColorRect.new(); overlay.size=Vector2(1280,720); overlay.color=Color(0,0,0,0.75); add_child(overlay)
-	var panel=ColorRect.new(); panel.size=Vector2(500,350); panel.position=Vector2(390,185); panel.color=Color(0.08,0.05,0.15,0.95); overlay.add_child(panel)
-	var t=Label.new(); t.text="CONFIGURAR PARTIDA"; t.add_theme_font_size_override("font_size",22)
-	t.position=Vector2(50,20); t.size=Vector2(400,30); t.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; panel.add_child(t)
+	# Beautiful difficulty/kingdom selection panel
+	var overlay=ColorRect.new(); overlay.size=Vector2(1280,720); overlay.color=Color(0,0,0,0.8); add_child(overlay)
+	var panel=ColorRect.new(); panel.size=Vector2(550,380); panel.position=Vector2(365,170); panel.color=Color(0.06,0.04,0.12,0.97); overlay.add_child(panel)
+	# Panel border
+	var pborder=ColorRect.new(); pborder.size=Vector2(554,384); pborder.position=Vector2(363,168); pborder.color=Color(0.5,0.35,0.15,0.5); pborder.mouse_filter=Control.MOUSE_FILTER_IGNORE; overlay.add_child(pborder)
+	# Title
+	var t=Label.new(); t.text="⚔ CONFIGURAR PARTIDA"; t.add_theme_font_size_override("font_size",24)
+	t.position=Vector2(40,15); t.size=Vector2(470,35); t.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; t.modulate=Color(1,0.85,0.3); panel.add_child(t)
+	var line=ColorRect.new(); line.size=Vector2(500,1); line.position=Vector2(25,55); line.color=Color(1,0.7,0.1,0.2); panel.add_child(line)
 	
-	# Difficulty
-	var dl=Label.new(); dl.text="Dificultad:"; dl.add_theme_font_size_override("font_size",14)
-	dl.position=Vector2(50,70); dl.size=Vector2(400,20); panel.add_child(dl)
+	# Difficulty section
+	var dl=Label.new(); dl.text="🗡 DIFICULTAD"; dl.add_theme_font_size_override("font_size",16)
+	dl.position=Vector2(30,70); dl.size=Vector2(200,25); dl.modulate=Color(0.8,0.7,0.3); panel.add_child(dl)
+	var diff_names=["🟢 Facil","🟡 Normal","🔴 Dificil"]
+	var diff_desc=["Menos enemigos, +recursos","Experiencia balanceada","Muchos enemigos, -recursos"]
 	for i in 3:
-		var btn=Button.new(); btn.text=["Facil","Normal","Dificil"][i]; btn.position=Vector2(50+i*150,100); btn.size=Vector2(120,35)
-		panel.add_child(btn)
-		var di=i+1; btn.pressed.connect(func(): Globals.difficulty=di; _start_game())
+		var card=ColorRect.new(); card.size=Vector2(150,60); card.position=Vector2(30+i*170,100); card.color=Color(0.08,0.05,0.15,0.9); panel.add_child(card)
+		var cborder=ColorRect.new(); cborder.size=Vector2(154,64); cborder.position=Vector2(28+i*170,98); cborder.color=[Color(0.2,0.7,0.3,0.3),Color(0.7,0.6,0.2,0.3),Color(0.7,0.2,0.2,0.3)][i]; cborder.mouse_filter=Control.MOUSE_FILTER_IGNORE; panel.add_child(cborder)
+		var cn=Label.new(); cn.text=diff_names[i]; cn.add_theme_font_size_override("font_size",14)
+		cn.position=Vector2(5,5); cn.size=Vector2(140,20); cn.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; card.add_child(cn)
+		var cd=Label.new(); cd.text=diff_desc[i]; cd.add_theme_font_size_override("font_size",8)
+		cd.position=Vector2(5,28); cd.size=Vector2(140,28); cd.modulate=Color(0.6,0.6,0.6); cd.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART; cd.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; card.add_child(cd)
+		var di=i+1; card.gui_input.connect(func(event):
+			if event is InputEventMouseButton and event.pressed and event.button_index==MOUSE_BUTTON_LEFT:
+				Globals.difficulty=di; _start_game())
+		card.mouse_entered.connect(func(c=card): c.modulate=Color(1.1,1.1,1.1))
+		card.mouse_exited.connect(func(c=card): c.modulate=Color(1,1,1))
 	
-	# Enemy kingdoms
-	var kl=Label.new(); kl.text="Reinos enemigos:"; kl.add_theme_font_size_override("font_size",14)
-	kl.position=Vector2(50,160); kl.size=Vector2(400,20); panel.add_child(kl)
+	# Enemy kingdoms section
+	var kl=Label.new(); kl.text="🏰 REINOS ENEMIGOS"; kl.add_theme_font_size_override("font_size",16)
+	kl.position=Vector2(30,180); kl.size=Vector2(250,25); kl.modulate=Color(0.8,0.7,0.3); panel.add_child(kl)
 	for i in range(1,5):
-		var btn=Button.new(); btn.text=str(i); btn.position=Vector2(50+(i-1)*120,190); btn.size=Vector2(100,35)
+		var btn=Button.new(); btn.text=str(i)+[" reino"," reinos"," reinos"," reinos"][i-1]; btn.position=Vector2(30+(i-1)*130,215); btn.size=Vector2(110,40)
+		btn.add_theme_color_override("font_color",Color(1,0.85,0.3)); btn.add_theme_color_override("button_normal",Color(0.15,0.1,0.2,0.9)); btn.add_theme_color_override("button_hover",Color(0.25,0.2,0.3,1.0))
 		panel.add_child(btn)
 		var ki=i; btn.pressed.connect(func(): Globals.enemy_kingdoms=ki; _start_game())
+	
+	# Info text
+	var inf=Label.new(); inf.text="Dificultad "+["Facil","Normal","Dificil"][Globals.difficulty-1]+" | "+str(Globals.enemy_kingdoms)+" reinos"
+	inf.add_theme_font_size_override("font_size",11); inf.position=Vector2(30,280); inf.size=Vector2(490,20); inf.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; inf.modulate=Color(0.5,0.5,0.6); panel.add_child(inf)
+	
+	# Close button
+	var close=Button.new(); close.text="✕"; close.position=Vector2(510,12); close.size=Vector2(30,30); close.add_theme_color_override("font_color",Color(1,0.5,0.5)); close.add_theme_color_override("button_normal",Color(0,0,0,0)); panel.add_child(close)
+	close.pressed.connect(func(): overlay.queue_free())
 
 func _start_game():
 	get_tree().change_scene_to_file("res://scenes/Game.tscn")
