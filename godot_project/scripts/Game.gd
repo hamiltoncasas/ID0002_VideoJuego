@@ -67,11 +67,15 @@ func _gen_resources():
 	for d in defs:
 		for i in range(d[1]):
 			var pos = Vector2(100+rng.randi()%(WORLD_W-200),100+rng.randi()%(WORLD_H-200))
-			var r = ColorRect.new(); r.size=Vector2(20,20); r.position=pos-Vector2(1,1)
-			r.color=d[2]; r.mouse_filter=Control.MOUSE_FILTER_IGNORE; world.add_child(r)
-			var l=Label.new(); l.text=d[3]; l.add_theme_font_size_override("font_size",16)
-			l.position=pos-Vector2(8,16); l.size=Vector2(32,32); l.mouse_filter=Control.MOUSE_FILTER_IGNORE; world.add_child(l)
-			res_nodes.append({"type":d[0],"pos":pos,"amount":d[4]+rng.randi()%30,"node":r})
+				var tex=null
+			if d[0]=="tree": tex=_load_sprite("tree_"+str(i%4))
+			if tex:
+				var spr=Sprite2D.new(); spr.texture=tex; spr.centered=true; spr.scale=Vector2(0.8,0.8); spr.position=pos; world.add_child(spr)
+				res_nodes.append({"type":d[0],"pos":pos,"amount":d[4]+rng.randi()%30,"node":spr})
+			else:
+				var r = ColorRect.new(); r.size=Vector2(20,20); r.position=pos; r.color=d[2]; r.mouse_filter=Control.MOUSE_FILTER_IGNORE; world.add_child(r)
+				var l=Label.new(); l.text=d[3]; l.add_theme_font_size_override("font_size",16); l.position=pos-Vector2(8,16); l.size=Vector2(32,32); l.mouse_filter=Control.MOUSE_FILTER_IGNORE; world.add_child(l)
+				res_nodes.append({"type":d[0],"pos":pos,"amount":d[4]+rng.randi()%30,"node":r})
 	# Animals
 	var animals=[["wolf","🐺",30,Color(0.5,0.3,0.2)],["cow","🐄",40,Color(0.8,0.7,0.5)],["pig","🐖",35,Color(1,0.7,0.6)],["buffalo","🐃",50,Color(0.4,0.2,0.1)]]
 	for a in animals:
@@ -99,7 +103,12 @@ func _make_building(type, pos):
 	var icons={"castle":"🏰","barracks":"⚔","archery":"🏹","stable":"🐎","siege":"💣","wall":"🧱","gate":"🚪","house":"🏠","tower_arrow":"🗼","tower_stone":"🏰","castle_defense":"🏯","market":"🏪","church":"⛪","forge":"🔨","mill":"🏭","shipyard":"🚢"}
 	var sizes={"castle":Vector2(80,80),"barracks":Vector2(50,45),"archery":Vector2(45,42),"stable":Vector2(55,45),"siege":Vector2(50,45),"wall":Vector2(40,20),"gate":Vector2(40,20),"house":Vector2(40,40),"tower_arrow":Vector2(40,40),"tower_stone":Vector2(50,50),"castle_defense":Vector2(70,70),"market":Vector2(50,45),"church":Vector2(55,50),"forge":Vector2(50,40),"mill":Vector2(45,40),"shipyard":Vector2(60,45)}
 	var max_hp={"castle":5000,"barracks":1500,"archery":1200,"stable":1800,"siege":2000,"wall":2000,"gate":1500,"house":800,"tower_arrow":2500,"tower_stone":3500,"castle_defense":4000,"market":800,"church":1200,"forge":1000,"mill":900,"shipyard":1500}
+	var level=1
 	var bnode=Node2D.new(); bnode.position=pos; world.add_child(bnode)
+	# Level label
+	var lvl=Label.new(); lvl.text="Lv."+str(level); lvl.add_theme_font_size_override("font_size",8)
+	lvl.position=Vector2(-15,-35); lvl.size=Vector2(30,10); lvl.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+	lvl.mouse_filter=Control.MOUSE_FILTER_IGNORE; bnode.add_child(lvl)
 	var tex=_load_sprite("building_"+type)
 	if tex:
 		var spr=Sprite2D.new(); spr.texture=tex; spr.centered=true; spr.scale=Vector2(2.0,2.0); bnode.add_child(spr)
