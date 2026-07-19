@@ -250,6 +250,13 @@ func _process(delta):
 			for en in enemies:
 				if not is_instance_valid(en["node"]): continue
 				if e["pos"].distance_to(en["pos"])<30 and rng.randf()<0.03: en["hp"]-=e["atk"]
+	# Towers auto-attack enemies
+	for b in buildings:
+		if b["type"] in ["tower_arrow","tower_stone","castle_defense","castle"]:
+			for en in enemies:
+				if not is_instance_valid(en.get("node")): continue
+				if b["pos"].distance_to(en["pos"])<200 and rng.randf()<0.02: en["hp"]-=15
+
 	# Minimap
 	_update_minimap()
 
@@ -346,49 +353,100 @@ func _select_at(wp):
 
 func _select_entity(e):
 	if e["type"] in ["villager","hero","artisan","warrior","archer","cavalry"]:
+		# Ctrl+click = multi-select
+		if Input.is_key_pressed(KEY_CTRL):
+			e["sel"]=true; selected.append(e); _show_multi_info()
+			return
 		for oe in entities: oe["sel"]=false
 		selected.clear(); e["sel"]=true; selected.append(e); _show_info(e)
 
 func _show_info(e):
 	var ip=ui.get_node("InfoPanel"); var il=ui.get_node("InfoLabel"); ip.visible=true
-	var names={"hero":"🦸 Heroe","villager":"👷 Aldeano","artisan":"🔧 Artesano","warrior":"⚔ Guerrero","archer":"🏹 Arquero","cavalry":"🐎 Jinete"}
-	il.text=names.get(e["type"],e["type"])+" | HP:"+str(e["hp"])+"/"+str(e["max_hp"])+"("+str(ceil(float(e["hp"])/e["max_hp"]*100))+"%) | ATK:"+str(e["atk"])
+	var names={"hero":"Heroe","villager":"Aldeano","artisan":"Artesano","warrior":"Guerrero","archer":"Arquero","cavalry":"Jinete"}
+	var ico={"hero":"🦸","villager":"👷","artisan":"🔧","warrior":"⚔","archer":"🏹","cavalry":"🐎"}
+	il.text=ico.get(e["type"],"?")+" "+names.get(e["type"],e["type"])+" | HP:"+str(e["hp"])+"/"+str(e["max_hp"])+" ("+str(ceil(float(e["hp"])/e["max_hp"]*100))+"%) | ATK:"+str(e["atk"])
 	for i in range(13): var b=ui.get_node("Build"+str(i)); if b: b.visible=false
 	for i in 3: var act=ui.get_node("Act"+str(i)); if act: act.visible=false
-	if e["type"]=="villager":
-		var act=ui.get_node("Act0")
-		if act: act.visible=true; act.text="🏗 Construir"
+	# Show actions based on unit type
+	var actions=[]
+	if e["type"]=="villager": actions=["🏗 Construir","🎯 Recolectar","🏃 Mover a"]
+	elif e["type"]=="artisan": actions=["🔧 Mejorar Unidad","🔨 Mejorar Arma","🏃 Mover a"]
+	elif e["type"] in ["warrior","archer","cavalry"]: actions=["⚔ Atacar","🗺 Explorar","🏃 Mover a"]
+	elif e["type"]=="hero": actions=["⚡ Habilidad","⚔ Atacar","🏃 Mover a"]
+	for i in 3:
+		var act=ui.get_node("Act"+str(i))
+		if act and i<actions.size(): act.visible=true; act.text=actions[i]
+
+func _show_multi_info():
+	var ip=ui.get_node("InfoPanel"); var il=ui.get_node("InfoLabel"); ip.visible=true
+	il.text=str(selected.size())+" unidades seleccionadas"
+	for i in range(13): var b=ui.get_node("Build"+str(i)); if b: b.visible=false
+	var act=ui.get_node("Act0")
+	if act: act.visible=true; act.text="🏃 Mover todas"
 
 func _select_building(b):
 	selected_building=b
 	var ip=ui.get_node("InfoPanel"); var il=ui.get_node("InfoLabel"); ip.visible=true
-	var names={"castle":"🏰 Castillo","barracks":"⚔ Cuartel","archery":"🏹 Arqueria","stable":"🐎 Caballeriza","siege":"💣 Taller Asedio","wall":"🧱 Muralla","tower_arrow":"🗼 Torre"}
+	var names={"castle":"🏰 Castillo","barracks":"⚔ Cuartel","archery":"🏹 Arqueria","stable":"🐎 Caballeriza","siege":"💣 Asedio","wall":"🧱 Muralla","gate":"🚪 Puerta","house":"🏠 Casa","tower_arrow":"🗼 T.Flechas","tower_stone":"🏰 T.Piedra","castle_defense":"🏯 C.Defensa","market":"🏪 Mercado","church":"⛪ Iglesia","forge":"🔨 Forja"}
 	il.text=names.get(b["type"],b["type"])+" | HP:"+str(b["hp"])+"/"+str(b["max_hp"])
 	for i in range(13): var btn=ui.get_node("Build"+str(i)); if btn: btn.visible=false
 	for i in 3: var act=ui.get_node("Act"+str(i)); if act: act.visible=false
-	var bu={"barracks":[["Guerrero","50🪙25🌾"]],"archery":[["Arquero","80🪙30🪵"]],"stable":[["Jinete","120🪙40🌾"]],"siege":[["Ariete","200🪙150🪵"]]}
+	var bu={"barracks":[["Guerrero","50🪙"]],"archery":[["Arquero","80🪙"]],"stable":[["Jinete","120🪙"]],"siege":[["Ariete","200🪙"]]}
 	if bu.has(b["type"]):
 		var units=bu[b["type"]]
 		for i in 3:
 			var act=ui.get_node("Act"+str(i))
 			if act and i<units.size(): act.visible=true; act.text=units[i][0]+"\n"+units[i][1]
+	var ip=ui.get_node("InfoPanel"); var il=ui.get_node("InfoLabel"); ip.visible=true
+	il.text=str(selected.size())+" unidades seleccionadas"
+	for i in range(13): var b=ui.get_node("Build"+str(i)); if b: b.visible=false
+	var act=ui.get_node("Act0")
+	if act: act.visible=true; act.text="🏃 Mover todas"
 
 func _on_act(idx):
 	if selected_building:
+		# Train units from building
+		var train={"barracks":["warrior"],"archery":["archer"],"stable":["cavalry"],"siege":["siege_ram"]}
 		var btype=selected_building["type"]
-		var train_units={"barracks":["warrior"],"archery":["archer"],"stable":["cavalry"],"siege":["siege_ram"]}
-		if train_units.has(btype) and idx>=0 and idx<train_units[btype].size():
-			var unit=train_units[btype][idx]; var defs=Globals.unit_defs
-			if defs.has(unit):
-				var d=defs[unit]; var costs={"warrior":{"gold":50,"food":25},"archer":{"gold":80,"food":15,"wood":30},"cavalry":{"gold":120,"food":40},"siege_ram":{"gold":200,"wood":150}}
-				var cost=costs.get(unit,{"gold":50})
-				for r in cost:
-					if game_res.get(r,0)<cost[r]: _notify("❌ Recursos insuficientes"); return
-				for r in cost: game_res[r]-=cost[r]
-				var sp=selected_building["pos"]+Vector2(40+rng.randi()%20,-10+rng.randi()%20)
-				_make_entity(unit,sp,"?",d["color"],d["hp"],d["atk"])
-				_notify("✅ Unidad entrenada!"); return
-	if idx==0 and selected.size()>0 and selected[0]["type"]=="villager": _toggle_build_menu()
+		if train.has(btype) and idx<train[btype].size():
+			var unit=train[btype][idx]
+			var costs={"warrior":{"gold":50,"food":25},"archer":{"gold":80,"food":15,"wood":30},"cavalry":{"gold":120,"food":40},"siege_ram":{"gold":200,"wood":150}}
+			var cost=costs.get(unit,{"gold":50})
+			for r in cost:
+				if game_res.get(r,0)<cost[r]: _notify("Sin recursos"); return
+			for r in cost: game_res[r]-=cost[r]
+			var sp=selected_building["pos"]+Vector2(40+rng.randi()%20,-10+rng.randi()%20)
+			var d=Globals.unit_defs.get(unit,Globals.unit_defs["warrior"])
+			_make_entity(unit,sp,"?",d["color"],d["hp"],d["atk"])
+			_notify("Unidad entrenada!"); return
+	if selected.size()==0: return
+	var e=selected[0]
+	# Villager actions
+	if e["type"]=="villager":
+		if idx==0: _toggle_build_menu()
+		elif idx==1: _notify("Click derecho en recurso para recolectar")
+		elif idx==2: _notify("Click derecho en destino para mover")
+	# Artisan actions
+	elif e["type"]=="artisan":
+		if idx==0: _notify("Selecciona unidad aliada para mejorar (+5 ATK, -50 oro)")
+		elif idx==1: _notify("Selecciona edificio para mejorar armas")
+	# Military actions
+	elif e["type"] in ["warrior","archer","cavalry"]:
+		if idx==0: _notify("Click derecho en enemigo para atacar")
+		elif idx==1: _notify("La unidad explorara automaticamente")
+		elif idx==2: _notify("Click derecho en destino para mover")
+	# Hero actions
+	elif e["type"]=="hero":
+		if idx==0: _use_hero_skill()
+		elif idx==1: _notify("Click derecho en enemigo para atacar")
+
+func _use_hero_skill():
+	var e=selected[0]; if not e["type"]=="hero": return
+	e["hp"]=min(e["max_hp"],e["hp"]+50)
+	for en in enemies:
+		if not is_instance_valid(en.get("node")): continue
+		if e["pos"].distance_to(en["pos"])<200: en["hp"]-=e["atk"]*2
+	_notify("Habilidad del heroe activada!")
 
 func _toggle_build_menu():
 	var vis=not ui.get_node("Build0").visible
