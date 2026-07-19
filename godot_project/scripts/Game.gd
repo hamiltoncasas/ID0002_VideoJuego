@@ -440,6 +440,9 @@ func _input(event):
 					if e["type"]=="villager" and ck_res: e["task"]="gathering"; e["gather_target"]=ck_res; e["target_pos"]=ck_res["pos"]; e["moving"]=true
 					elif e["type"] in ["warrior","archer","cavalry","hero"] and ck_en: e["target_pos"]=ck_en["pos"]; e["moving"]=true
 					else: e["target_pos"]=wp; e["moving"]=true; e["task"]="idle"; e["gather_target"]=null
+				# Deselect after move so user can select other units
+				for oe in entities: oe["sel"]=false
+				selected.clear(); _hide_info()
 			else: _select_at(wp)
 		get_viewport().set_input_as_handled(); return
 	
