@@ -100,10 +100,14 @@ func _make_building(type, pos):
 	var sizes={"castle":Vector2(80,80),"barracks":Vector2(50,45),"archery":Vector2(45,42),"stable":Vector2(55,45),"siege":Vector2(50,45),"wall":Vector2(40,20),"gate":Vector2(40,20),"house":Vector2(40,40),"tower_arrow":Vector2(40,40),"tower_stone":Vector2(50,50),"castle_defense":Vector2(70,70),"market":Vector2(50,45),"church":Vector2(55,50),"forge":Vector2(50,40),"mill":Vector2(45,40),"shipyard":Vector2(60,45)}
 	var max_hp={"castle":5000,"barracks":1500,"archery":1200,"stable":1800,"siege":2000,"wall":2000,"gate":1500,"house":800,"tower_arrow":2500,"tower_stone":3500,"castle_defense":4000,"market":800,"church":1200,"forge":1000,"mill":900,"shipyard":1500}
 	var bnode=Node2D.new(); bnode.position=pos; world.add_child(bnode)
-	var body=ColorRect.new(); body.size=sizes.get(type,Vector2(50,50)); body.position=-body.size/2
-	body.color=colors.get(type,Color(0.3,0.2,0.1)); body.mouse_filter=Control.MOUSE_FILTER_IGNORE; bnode.add_child(body)
-	var lbl=Label.new(); lbl.text=icons.get(type,"🏗"); lbl.add_theme_font_size_override("font_size",22)
-	lbl.position=Vector2(-15,-12); lbl.size=Vector2(40,40); lbl.mouse_filter=Control.MOUSE_FILTER_IGNORE; bnode.add_child(lbl)
+	var tex=_load_sprite("building_"+type)
+	if tex:
+		var spr=Sprite2D.new(); spr.texture=tex; spr.centered=true; spr.scale=Vector2(2.0,2.0); bnode.add_child(spr)
+	else:
+		var body=ColorRect.new(); body.size=sizes.get(type,Vector2(50,50)); body.position=-body.size/2
+		body.color=colors.get(type,Color(0.3,0.2,0.1)); body.mouse_filter=Control.MOUSE_FILTER_IGNORE; bnode.add_child(body)
+		var lbl=Label.new(); lbl.text=icons.get(type,"🏗"); lbl.add_theme_font_size_override("font_size",22)
+		lbl.position=Vector2(-15,-12); lbl.size=Vector2(40,40); lbl.mouse_filter=Control.MOUSE_FILTER_IGNORE; bnode.add_child(lbl)
 	buildings.append({"type":type,"node":bnode,"pos":pos,"hp":max_hp.get(type,1000),"max_hp":max_hp.get(type,1000)})
 
 func _spawn_units():
