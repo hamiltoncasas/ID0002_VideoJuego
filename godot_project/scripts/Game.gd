@@ -51,7 +51,7 @@ func _gen_terrain():
 		var w2=ColorRect.new(); w2.size=Vector2(16,40); w2.position=Vector2(WORLD_W-16,y); w2.color=bc; w2.mouse_filter=Control.MOUSE_FILTER_IGNORE; world.add_child(w2)
 
 func _gen_resources():
-	var defs = [["tree",40,Color(0.05,0.4,0.05),"🌲",50],["gold",5,Color(1,0.7,0.1),"💎",300],["stone",6,Color(0.5,0.5,0.5),"🪨",200]]
+	var defs = [["tree",35,Color(0.05,0.4,0.05),"🌲",50],["gold",5,Color(1,0.7,0.1),"💎",300],["stone",6,Color(0.5,0.5,0.5),"🪨",200]]
 	for d in defs:
 		for i in range(d[1]):
 			var pos = Vector2(100+rng.randi()%(WORLD_W-200),100+rng.randi()%(WORLD_H-200))
@@ -60,6 +60,22 @@ func _gen_resources():
 			var l=Label.new(); l.text=d[3]; l.add_theme_font_size_override("font_size",16)
 			l.position=pos-Vector2(8,16); l.size=Vector2(32,32); l.mouse_filter=Control.MOUSE_FILTER_IGNORE; world.add_child(l)
 			res_nodes.append({"type":d[0],"pos":pos,"amount":d[4]+rng.randi()%30,"node":r})
+	# Animals
+	var animals=[["wolf","🐺",30,Color(0.5,0.3,0.2)],["cow","🐄",40,Color(0.8,0.7,0.5)],["pig","🐖",35,Color(1,0.7,0.6)],["buffalo","🐃",50,Color(0.4,0.2,0.1)]]
+	for a in animals:
+		for i in range(4):
+			var pos=Vector2(200+rng.randi()%(WORLD_W-400),200+rng.randi()%(WORLD_H-400))
+			var r=ColorRect.new(); r.size=Vector2(18,18); r.position=pos; r.color=a[3]; r.mouse_filter=Control.MOUSE_FILTER_IGNORE; world.add_child(r)
+			var l=Label.new(); l.text=a[1]; l.add_theme_font_size_override("font_size",14); l.position=pos-Vector2(7,16); l.size=Vector2(28,28); l.mouse_filter=Control.MOUSE_FILTER_IGNORE; world.add_child(l)
+			res_nodes.append({"type":a[0],"pos":pos,"amount":a[2],"node":r})
+	# Wild crops (non-renewable)
+	var crops=[["wheat","🌾",25,Color(0.9,0.8,0.3)],["potato","🥔",20,Color(0.7,0.5,0.3)],["corn","🌽",30,Color(1,0.9,0.2)]]
+	for c in crops:
+		for i in range(6):
+			var pos=Vector2(300+rng.randi()%(WORLD_W-600),300+rng.randi()%(WORLD_H-600))
+			var r=ColorRect.new(); r.size=Vector2(16,16); r.position=pos; r.color=c[3]; r.mouse_filter=Control.MOUSE_FILTER_IGNORE; world.add_child(r)
+			var l=Label.new(); l.text=c[1]; l.add_theme_font_size_override("font_size",12); l.position=pos-Vector2(6,14); l.size=Vector2(24,24); l.mouse_filter=Control.MOUSE_FILTER_IGNORE; world.add_child(l)
+			res_nodes.append({"type":c[0],"pos":pos,"amount":c[2],"node":r,"renewable":false})
 
 func _gen_buildings():
 	_make_building("castle", Vector2(400,WORLD_H/2-40))
@@ -284,9 +300,20 @@ func _ai_villager(e):
 func _do_gather(e,res):
 	if res["amount"]<=0: return
 	res["amount"]-=1
-	var rewards={"tree":"wood","gold":"gold","stone":"stone","deer":"food"}
-	if rewards.has(res["type"]): game_res[rewards[res["type"]]]+=2
-	if res["amount"]<=0: res["node"].queue_free(); res_nodes.erase(res); e["task"]="idle"; e["gather_target"]=null
+	var rewards={"tree":"wood","gold":"gold","stone":"stone","deer":"food","wolf":"food","cow":"food","pig":"food","buffalo":"food","wheat":"food","potato":"food","corn":"food"}
+	var values={"tree":2,"gold":3,"stone":2,"deer":5,"wolf":3,"cow":6,"pig":4,"buffalo":8,"wheat":5,"potato":2,"corn":10}
+	if rewards.has(res["type"]):
+		game_res[rewards[res["type"]]]+=values.get(res["type"],2)
+	# Check mills nearby for bonus
+	for b in buildings:
+		if b["type"]=="mill" and res["pos"].distance_to(b["pos"])<200:
+			game_res[rewards[res["type"]]]+=2
+	if res["amount"]<=0:
+		if res.get("renewable",true):
+			res["amount"]=50+rng.randi()%20  # Mines/forests renew
+		else:
+			res["node"].queue_free(); res_nodes.erase(res)
+		e["task"]="idle"; e["gather_target"]=null
 
 func _destroy_entity(e):
 	e["node"].queue_free(); entities.erase(e); if e in selected: selected.erase(e)
