@@ -8,12 +8,16 @@
 
 config_version=5
 
+[animation]
+
+compatibility/default_parent_skeleton_in_mesh_instance_3d=true
+
 [application]
 
 config/name="Legado Muisca"
 config/description="Estrategia Muisca con 3 carriles"
 run/main_scene="res://scenes/Login.tscn"
-config/features=PackedStringArray("4.3")
+config/features=PackedStringArray("4.7")
 boot_splash/bg_color=Color(0.08, 0.04, 0.12, 1)
 
 [autoload]
