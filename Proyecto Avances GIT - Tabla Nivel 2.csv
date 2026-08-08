@@ -1,0 +1,12 @@
+Title	URL	Nivel	Assignees	Status	Fecha Prevista Inicio	Fecha Prevista Fin	Fecha Real Inicio	Fecha Real Fin	Discusión	Sprint	Parent issue
+Epica 1	https://github.com/hamiltoncasas/PruebasGIT/issues/1	Epica	hamiltoncasas	To Do	Aug 6, 2026	Aug 8, 2026	Aug 6, 2026	Aug 7, 2026			
+ID0001	https://github.com/hamiltoncasas/PruebasGIT/issues/2	Feature	hamiltoncasas	To Do	Aug 6, 2026	Aug 8, 2026	Aug 6, 2026	Aug 7, 2026			https://github.com/hamiltoncasas/PruebasGIT/issues/1
+HUS 01	https://github.com/hamiltoncasas/PruebasGIT/issues/3	Historia De Usuario	hamiltoncasas	To Do	Aug 6, 2026	Aug 8, 2026	Aug 6, 2026	Aug 7, 2026			https://github.com/hamiltoncasas/PruebasGIT/issues/2
+TASK 7	https://github.com/hamiltoncasas/PruebasGIT/issues/4	Tarea	hamiltoncasas	To Do	Aug 6, 2026	Aug 8, 2026	Aug 6, 2026	Aug 7, 2026			https://github.com/hamiltoncasas/PruebasGIT/issues/3
+HUS 02	https://github.com/hamiltoncasas/PruebasGIT/issues/5	Historia De Usuario	hamiltoncasas	To Do	Aug 6, 2026	Aug 8, 2026	Aug 6, 2026	Aug 7, 2026			https://github.com/hamiltoncasas/PruebasGIT/issues/2
+TASK 2	https://github.com/hamiltoncasas/PruebasGIT/issues/6	Tarea	hamiltoncasas	To Do	Aug 6, 2026	Aug 8, 2026	Aug 6, 2026	Aug 7, 2026			https://github.com/hamiltoncasas/PruebasGIT/issues/3
+TASK 3	https://github.com/hamiltoncasas/PruebasGIT/issues/7	Tarea	hamiltoncasas	To Do	Aug 6, 2026	Aug 8, 2026	Aug 6, 2026	Aug 7, 2026			https://github.com/hamiltoncasas/PruebasGIT/issues/5
+TASK 4	https://github.com/hamiltoncasas/PruebasGIT/issues/8	Tarea	hamiltoncasas	To Do	Aug 6, 2026	Aug 8, 2026	Aug 6, 2026	Aug 7, 2026			https://github.com/hamiltoncasas/PruebasGIT/issues/5
+TASK 5	https://github.com/hamiltoncasas/PruebasGIT/issues/9	Tarea	hamiltoncasas	To Do	Aug 6, 2026	Aug 8, 2026	Aug 6, 2026	Aug 7, 2026			https://github.com/hamiltoncasas/PruebasGIT/issues/5
+TASK 6	https://github.com/hamiltoncasas/PruebasGIT/issues/10	Tarea	hamiltoncasas	To Do	Aug 6, 2026	Aug 8, 2026	Aug 6, 2026	Aug 7, 2026			https://github.com/hamiltoncasas/PruebasGIT/issues/5
+TASK 7	https://github.com/hamiltoncasas/PruebasGIT/issues/11	Tarea	hamiltoncasas	To Do	Aug 6, 2026	Aug 8, 2026	Aug 6, 2026	Aug 7, 2026			https://github.com/hamiltoncasas/PruebasGIT/issues/5
