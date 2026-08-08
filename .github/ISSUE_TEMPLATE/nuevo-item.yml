@@ -1,0 +1,75 @@
+name: "Nuevo Item Jerárquico"
+description: "Crea un item con su nivel"
+title: "[Nivel] - Título"
+labels: ["needs-triage"]
+body:
+  - type: dropdown
+    id: nivel
+    attributes:
+      label: "Nivel"
+      description: "Elige el tipo de item"
+      options:
+        - Epica
+        - Feature
+        - Historia De Usuario
+        - Tarea
+        - Bug
+    validations:
+      required: true
+
+  - type: dropdown
+    id: status
+    attributes:
+      label: "Status"
+      description: "Selecciona el estado del item"
+      options:
+        - Nuevo
+        - En Progreso
+        - En Revisión
+        - Completado
+    validations:
+      required: false
+
+  - type: input
+    id: fecha_previsto_inicio
+    attributes:
+      label: "Fecha Previsto Inicio"
+      description: "Fecha estimada de inicio (formato: AAAA-MM-DD)"
+      placeholder: "AAAA-MM-DD"
+    validations:
+      required: false
+
+  - type: input
+    id: fecha_previsto_fin
+    attributes:
+      label: "Fecha Previsto Fin"
+      description: "Fecha estimada de término (formato: AAAA-MM-DD)"
+      placeholder: "AAAA-MM-DD"
+    validations:
+      required: false
+
+  - type: input
+    id: fecha_real_inicio
+    attributes:
+      label: "Fecha Real Inicio"
+      description: "Fecha real de inicio (formato: AAAA-MM-DD)"
+      placeholder: "AAAA-MM-DD"
+    validations:
+      required: false
+
+  - type: input
+    id: fecha_real_final
+    attributes:
+      label: "Fecha Real Final"
+      description: "Fecha real de término (formato: AAAA-MM-DD)"
+      placeholder: "AAAA-MM-DD"
+    validations:
+      required: false
+
+  - type: textarea
+    id: descripcion
+    attributes:
+      label: "Descripción"
+      description: "Detalla el contenido de este item"
+    validations:
+      required: false

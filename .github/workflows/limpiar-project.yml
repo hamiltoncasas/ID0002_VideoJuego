@@ -1,0 +1,194 @@
+name: Limpiar Issues del Project v2
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmar:
+        description: 'Escribe SI para confirmar la eliminación de todos los items del Project'
+        required: true
+        default: 'NO'
+
+permissions:
+  contents: read
+  issues: write
+  repository-projects: write
+
+jobs:
+  limpiar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verificar confirmación
+        run: |
+          if [ "${{ inputs.confirmar }}" != "SI" ]; then
+            echo "Cancelado: escribe SI en el campo 'confirmar' para eliminar los items."
+            exit 1
+          fi
+
+      - name: Verificar token de acceso a Projects
+        run: |
+          if [ -n "${{ secrets.GH_PAT }}" ]; then
+            echo "✅ GH_PAT configurado: se usará el PAT (acceso a Projects de usuario)."
+            echo "⚠️ Algunos Projects de usuario requieren scopes: repo, project, read:org, read:user."
+          else
+            echo "❌ GH_PAT NO configurado."
+            echo "   El GITHUB_TOKEN SOLO accede a Projects vinculados al repositorio."
+            echo "   Si el Project 'Proyecto Avances GIT' es de tu usuario y no está vinculado,"
+            echo "   la operación fallará con error de permisos al listar items."
+            echo "   Solución: crea un PAT (Settings → Developer settings → Tokens → classic)"
+            echo "   con scopes: repo, project, read:org, read:user → agrégalo como secret GH_PAT."
+          fi
+
+      - name: Eliminar todos los items del Project v2 y los issues del repositorio
+        uses: actions/github-script@v7
+        env:
+          GH_TOKEN_GQL: ${{ secrets.GH_PAT || github.token }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+
+            // Llamada directa a la API GraphQL (igual que Postman)
+            const GQL_URL = 'https://api.github.com/graphql';
+            const gql = async (query, variables = {}) => {
+              const res = await fetch(GQL_URL, {
+                method: 'POST',
+                headers: {
+                  'Authorization': 'Bearer ' + process.env.GH_TOKEN_GQL,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ query, variables })
+              });
+              const json = await res.json();
+              if (!res.ok || json.errors) {
+                throw new Error(JSON.stringify(json.errors || json, null, 2));
+              }
+              return json.data;
+            };
+
+            // 1) Buscar TODOS los proyectos v2 (repo, usuario, org)
+            const FRAGMENT = `
+              fragment ProjectFields on ProjectV2 {
+                id
+                title
+              }
+            `;
+            const proyectos = [];
+
+            const qRepo = `query($owner: String!, $repo: String!) { repository(owner: $owner, name: $repo) { projectsV2(first: 50) { nodes { ...ProjectFields } } } } ${FRAGMENT}`;
+            const qUser = `query($owner: String!) { user(login: $owner) { projectsV2(first: 50) { nodes { ...ProjectFields } } } } ${FRAGMENT}`;
+            const qOrg  = `query($owner: String!) { organization(login: $owner) { projectsV2(first: 50) { nodes { ...ProjectFields } } } } ${FRAGMENT}`;
+
+            for (const [nombre, query, vars] of [
+              ['repo', qRepo, { owner, repo }],
+              ['usuario', qUser, { owner }],
+              ['org', qOrg, { owner }]
+            ]) {
+              try {
+                const data = await gql(query, vars);
+                const nodes = data.repository?.projectsV2?.nodes || data.user?.projectsV2?.nodes || data.organization?.projectsV2?.nodes || [];
+                for (const n of nodes) proyectos.push({ ...n, origen: nombre });
+              } catch (e) {
+                console.log(`projectsV2 de ${nombre} no disponible:`, e.message);
+              }
+            }
+
+            // 2) Tomar TODOS los proyectos que tengan título "Proyecto Avances GIT"
+            // (puede haber uno vinculado al repo y otro de usuario - procesar ambos)
+            let projects = proyectos.filter(p => p.title.includes('Proyecto Avances GIT'));
+            if (projects.length === 0) {
+              if (proyectos.length === 0) throw new Error('No se encontró ningún Project v2 accesible.');
+              projects = [proyectos[0]];
+            }
+            console.log('Projects a limpiar:');
+            for (const p of projects) console.log(`  - ${p.title} (${p.id}) [${p.origen}]`);
+
+            // 3) Función para listar TODOS los items de un proyecto (paginación con cursor)
+            const listarItems = async (projectId) => {
+              const items = [];
+              let cursor = null;
+              for (let i = 0; i < 20; i++) {
+                const queryItems = `
+                  query($projectId: ID!, $cursor: String) {
+                    node(id: $projectId) {
+                      ... on ProjectV2 {
+                        items(first: 100, after: $cursor) {
+                          nodes {
+                            id
+                            content {
+                              ... on Issue { number }
+                            }
+                          }
+                          pageInfo { hasNextPage endCursor }
+                        }
+                      }
+                    }
+                  }
+                `;
+                const data = await gql(queryItems, { projectId, cursor });
+                const page = data.node.items;
+                for (const it of page.nodes) {
+                  items.push({ itemId: it.id, issueNumber: it.content?.number || null });
+                }
+                if (!page.pageInfo.hasNextPage) break;
+                cursor = page.pageInfo.endCursor;
+              }
+              return items;
+            };
+
+            // 4) Recopilar items de todos los proyectos y números de issue
+            const todosLosItems = [];      // { projectId, itemId, issueNumber }
+            const numerosIssues = new Set();
+            for (const p of projects) {
+              const items = await listarItems(p.id);
+              console.log(`Project "${p.title}" (${p.origen}): ${items.length} items`);
+              for (const it of items) {
+                todosLosItems.push({ projectId: p.id, ...it });
+                if (it.issueNumber) numerosIssues.add(it.issueNumber);
+              }
+            }
+
+            const totalItems = todosLosItems.length;
+            const totalIssues = numerosIssues.size;
+            console.log(`\nTotal items en Projects: ${totalItems}`);
+            console.log(`Total issues únicos a eliminar: ${totalIssues}`);
+            if (totalItems === 0 && totalIssues === 0) {
+              console.log('No hay items ni issues que eliminar.');
+              return;
+            }
+
+            // 5) Eliminar cada item de su Project
+            const mDel = `
+              mutation($projectId: ID!, $itemId: ID!) {
+                deleteProjectV2Item(input: { projectId: $projectId, itemId: $itemId }) {
+                  deletedItemId
+                }
+              }
+            `;
+            let okProject = 0, errProject = 0;
+            for (const item of todosLosItems) {
+              try {
+                await gql(mDel, { projectId: item.projectId, itemId: item.itemId });
+                okProject++;
+              } catch (e) {
+                errProject++;
+                console.log(`❌ Error eliminando item ${item.itemId}: ${e.message}`);
+              }
+            }
+
+            // 6) Eliminar los issues del repositorio
+            let okIssues = 0, errIssues = 0;
+            for (const num of numerosIssues) {
+              try {
+                await github.rest.issues.delete({ owner, repo, issue_number: num });
+                okIssues++;
+                console.log(`🗑️ Issue #${num} eliminado del repositorio`);
+              } catch (e) {
+                errIssues++;
+                console.log(`❌ Error eliminando issue #${num}: ${e.message}`);
+              }
+            }
+
+            console.log('\n--- Resumen ---');
+            console.log(`Items eliminados de Projects: ${okProject}`);
+            console.log(`Errores en Projects: ${errProject}`);
+            console.log(`Issues eliminados del repositorio: ${okIssues}`);
+            console.log(`Errores en repositorio: ${errIssues}`);
