@@ -1,0 +1,312 @@
+name: Procesar Jerarquía de Issue
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  procesar:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+      repository-projects: write
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Extraer datos del formulario
+        id: datos
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            // El body del issue, tal cual lo genera el formulario
+            const body = context.payload.issue.body || '';
+
+            // Normaliza: minúsculas, sin acentos/diacríticos, espacios simples, sin puntuación
+            const normalize = (str) => (str || '')
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .replace(/[()\[\]"'"?.,:]/g, '')
+              .replace(/\s+/g, ' ')
+              .trim()
+              .toLowerCase();
+
+            // Mapeo de headings normalizados -> etiquetas de salida
+            const expected = {
+              'nivel': 'Nivel',
+              'status': 'Status',
+              'fecha previsto inicio': 'Fecha Previsto Inicio',
+              'fecha previsto fin': 'Fecha Previsto Fin',
+              'fecha real inicio': 'Fecha Real Inicio',
+              'fecha real final': 'Fecha Real Final',
+              'descripcion': 'Descripción'
+            };
+
+            const lines = body.replace(/\r/g, '').split('\n');
+            const values = {};
+            for (const label of Object.values(expected)) {
+              values[label] = '';
+            }
+
+            for (let i = 0; i < lines.length; i++) {
+              const m = lines[i].trim().match(/^(#{1,6})\s*(.+)$/);
+              if (!m) continue;
+              const heading = normalize(m[2]);
+              if (Object.prototype.hasOwnProperty.call(expected, heading)) {
+                const target = expected[heading];
+                // El valor está en las líneas siguientes: saltar vacías,
+                // detenerse al encontrar otro heading (campo vacío).
+                for (let j = i + 1; j < lines.length; j++) {
+                  const ln = lines[j].trim();
+                  if (ln.startsWith('#')) break;
+                  if (ln && ln.toLowerCase().replace(/_/g, ' ') !== 'no response' && !values[target]) {
+                    values[target] = ln;
+                    break;
+                  }
+                }
+              }
+            }
+
+            if (!values['Nivel']) {
+              const err = `No se encontró el valor de '### Nivel' en el cuerpo del issue.\n\n` +
+                `Contenido recibido (primeras 800 caracteres):\n\`\`\`\n${body.slice(0, 800)}\n\`\`\``;
+              // Dejar evidencia visible en el propio issue
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: `⚠️ **Error de procesamiento:** ${err}`
+              });
+              core.setFailed(err);
+              return;
+            }
+
+            // Escribir las variables a GITHUB_ENV para los pasos siguientes
+            const envLines = [
+              `NIVEL=${values['Nivel']}`,
+              `STATUS=${values['Status']}`,
+              `FECHA_PREVISTO_INICIO=${values['Fecha Previsto Inicio']}`,
+              `FECHA_PREVISTO_FIN=${values['Fecha Previsto Fin']}`,
+              `FECHA_REAL_INICIO=${values['Fecha Real Inicio']}`,
+              `FECHA_REAL_FINAL=${values['Fecha Real Final']}`,
+              `DESCRIPCION=${values['Descripción']}`
+            ];
+            fs.appendFileSync(process.env.GITHUB_ENV, envLines.join('\n') + '\n');
+
+            console.log('Datos extraídos:', JSON.stringify(values, null, 2));
+
+      - name: Asignar etiqueta según nivel
+        run: |
+          NIVEL_NORMALIZADO=$(echo "${{ env.NIVEL }}" | tr '[:upper:]' '[:lower:]' | sed 's/á/a/g; s/é/e/g; s/í/i/g; s/ó/o/g; s/ú/u/g; s/ü/u/g; s/ñ/n/g; s/ /_/g; s/[^a-z0-9_]//g')
+          case "$NIVEL_NORMALIZADO" in
+            "epica") LABEL="epic" ;;
+            "feature") LABEL="feature" ;;
+            "historia_de_usuario") LABEL="user-story" ;;
+            "tarea") LABEL="task" ;;
+            "bug") LABEL="bug" ;;
+            *)
+              echo "ERROR: Nivel no reconocido: '${{ env.NIVEL }}'"
+              exit 1
+              ;;
+          esac
+
+          if [ -z "$LABEL" ]; then
+            echo "ERROR: No se pudo asignar etiqueta para Nivel='${{ env.NIVEL }}'"
+            exit 1
+          fi
+
+          echo "LABEL=$LABEL" >> $GITHUB_ENV
+          echo "NIVEL_NORMALIZADO=$NIVEL_NORMALIZADO" >> $GITHUB_ENV
+
+      - name: Agregar etiqueta al Issue
+        uses: actions/github-script@v7
+        env:
+          LABEL: ${{ env.LABEL }}
+        with:
+          script: |
+            const issue = context.issue;
+            await github.rest.issues.addLabels({
+              owner: issue.owner,
+              repo: issue.repo,
+              issue_number: issue.number,
+              labels: [process.env.LABEL]
+            });
+
+      - name: Diagnosticar token y proyecto
+        run: |
+          if [ -n "${{ secrets.GH_PAT }}" ]; then
+            echo "TOKEN_PROJECT=PAT (secret GH_PAT configurado)"
+          else
+            echo "TOKEN_PROJECT=GITHUB_TOKEN (sin GH_PAT; solo ve Projects vinculados al repo)"
+          fi
+          echo "Project v2 debe estar VINCULADO al repo o usar GH_PAT."
+
+      - name: Actualizar campo "Nivel" en Project v2
+        uses: actions/github-script@v7
+        env:
+          NIVEL: ${{ env.NIVEL }}
+          # Token usado para llamar a https://api.github.com/graphql directamente.
+          # Si existe el secret GH_PAT, usa el PAT (acceso a Proyectos de usuario).
+          # Si no, usa el GITHUB_TOKEN por defecto (solo Proyectos vinculados al repo).
+          GH_TOKEN_GQL: ${{ secrets.GH_PAT || github.token }}
+        with:
+          script: |
+            const { owner, repo, number } = context.issue;
+            const nivel = process.env.NIVEL;
+
+            // Helper: llamada directa a https://api.github.com/graphql (igual que Postman)
+            const GQL_URL = 'https://api.github.com/graphql';
+            const gql = async (query, variables = {}) => {
+              const res = await fetch(GQL_URL, {
+                method: 'POST',
+                headers: {
+                  'Authorization': 'Bearer ' + process.env.GH_TOKEN_GQL,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ query, variables })
+              });
+              const json = await res.json();
+              if (!res.ok || json.errors) {
+                throw new Error(JSON.stringify(json.errors || json, null, 2));
+              }
+              return json.data;
+            };
+
+            const FRAGMENT_FIELDS = `
+              fragment ProjectFields on ProjectV2 {
+                id
+                title
+                fields(first: 50) {
+                  nodes {
+                    ... on ProjectV2FieldCommon {
+                      id
+                      name
+                    }
+                    ... on ProjectV2SingleSelectField {
+                      options {
+                        id
+                        name
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+
+            const queryRepo = `
+              query($owner: String!, $repo: String!) {
+                repository(owner: $owner, name: $repo) {
+                  projectsV2(first: 20) {
+                    nodes {
+                      ...ProjectFields
+                    }
+                  }
+                }
+              }
+              ${FRAGMENT_FIELDS}
+            `;
+
+            const queryUser = `
+              query($owner: String!) {
+                user(login: $owner) {
+                  projectsV2(first: 20) {
+                    nodes {
+                      ...ProjectFields
+                    }
+                  }
+                }
+              }
+              ${FRAGMENT_FIELDS}
+            `;
+
+            const queryOrg = `
+              query($owner: String!) {
+                organization(login: $owner) {
+                  projectsV2(first: 20) {
+                    nodes {
+                      ...ProjectFields
+                    }
+                  }
+                }
+              }
+              ${FRAGMENT_FIELDS}
+            `;
+
+            // Recolectar proyectos candidatos (repo, usuario dueño y organización dueña)
+            const proyectos = [];
+            const visitar = (nodes) => { if (nodes) for (const n of nodes) proyectos.push(n); };
+            try {
+              const r = await gql(queryRepo, { owner, repo });
+              visitar(r.repository?.projectsV2?.nodes);
+            } catch (e) { console.log('projectsV2 del repo no disponible:', e.message); }
+            try {
+              const u = await gql(queryUser, { owner });
+              visitar(u.user?.projectsV2?.nodes);
+            } catch (e) { console.log('projectsV2 del usuario no disponible:', e.message); }
+            try {
+              const o = await gql(queryOrg, { owner });
+              visitar(o.organization?.projectsV2?.nodes);
+            } catch (e) { console.log('projectsV2 de la organización no disponible:', e.message); }
+
+            // Buscar el proyecto que tenga el campo "Nivel"
+            let project = null;
+            for (const p of proyectos) {
+              const f = (p.fields?.nodes || []).find(x => x.name === "Nivel");
+              if (f) { project = p; break; }
+            }
+            if (!project) {
+              throw new Error(
+                `No se encontró un Project v2 con campo "Nivel".\n` +
+                `- Proyectos revisados: ${proyectos.map(p => p.title).join(', ') || 'ninguno (sin acceso a proyectos de usuario sin GH_PAT)'}\n\n` +
+                `SOLUCIÓN: 1) Vincula tu Project v2 al repositorio (project → Settings → Linked repository → ${owner}/${repo}), o\n` +
+                `2) Configura el secret GH_PAT en Settings → Secrets → Actions con permisos repo+project.`
+              );
+            }
+            console.log('Project v2 encontrado:', project.title);
+
+            const field = project.fields.nodes.find(f => f.name === "Nivel");
+            if (!field) throw new Error("No se encontró el campo 'Nivel' en el Project.");
+
+            const option = field.options.find(o => o.name === nivel);
+            if (!option) throw new Error(`No se encontró la opción "${nivel}" en el campo 'Nivel'.`);
+
+            const issueData = await github.rest.issues.get({ owner, repo, issue_number: number });
+            const issueId = issueData.data.node_id;
+
+            const mutationAdd = `
+              mutation($projectId: ID!, $issueId: ID!) {
+                addProjectV2ItemById(input: { projectId: $projectId, contentId: $issueId }) {
+                  item {
+                    id
+                  }
+                }
+              }
+            `;
+            // La mutación ya devuelve el id del ítem agregado al Project.
+            const added = await gql(mutationAdd, { projectId: project.id, issueId: issueId });
+            const itemId = added.addProjectV2ItemById.item.id;
+            console.log('Item agregado al Project con id:', itemId);
+
+            const mutationUpdate = `
+              mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                updateProjectV2ItemFieldValue(input: {
+                  projectId: $projectId,
+                  itemId: $itemId,
+                  fieldId: $fieldId,
+                  value: { singleSelectOptionId: $optionId }
+                }) {
+                  clientMutationId
+                }
+              }
+            `;
+            await gql(mutationUpdate, {
+              projectId: project.id,
+              itemId: itemId,
+              fieldId: field.id,
+              optionId: option.id
+            });
+
+            console.log(`Campo "Nivel" actualizado a "${nivel}" en el Project.`);

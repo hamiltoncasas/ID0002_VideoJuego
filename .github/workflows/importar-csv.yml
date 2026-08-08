@@ -1,0 +1,227 @@
+name: Importar Issues desde CSV
+
+on:
+  workflow_dispatch:
+    inputs:
+      archivo_csv:
+        description: 'Ruta del archivo CSV a importar (en la raíz del repo)'
+        required: false
+        default: 'Proyecto Avances GIT - Tabla Nivel 2.csv'
+      forzar:
+        description: 'Forzar creación aunque el título ya exista (true/false)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  importar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Mostrar archivos CSV disponibles
+        run: |
+          echo "Archivos CSV en la raíz del repositorio:"
+          ls -1 *.csv 2>/dev/null || echo "(No hay archivos .csv en la raíz)"
+          echo ""
+          echo "Archivo a importar: ${{ inputs.archivo_csv }}"
+
+      - name: Crear issues desde el CSV respetando la jerarquia
+        uses: actions/github-script@v7
+        env:
+          CSV_ARCHIVO: ${{ inputs.archivo_csv || 'Proyecto Avances GIT - Tabla Nivel 2.csv' }}
+          FORZAR: ${{ inputs.forzar }}
+        with:
+          script: |
+            const fs = require('fs');
+            const { owner, repo } = context.repo;
+
+            // Configuración (archivo elegido al ejecutar el workflow)
+            const CSV_PATH = process.env.CSV_ARCHIVO || 'Proyecto Avances GIT - Tabla Nivel 2.csv';
+            const FORZAR = (process.env.FORZAR || 'false').toLowerCase() === 'true';
+            const JERARQUIA_ORDEN = {
+              'epica': 0,
+              'feature': 1,
+              'historia de usuario': 2,
+              'tarea': 3,
+              'bug': 3
+            };
+            const HEADING_PADRE = {
+              'feature': 'Padre (Epica)',
+              'historia de usuario': 'Padre (Feature)',
+              'tarea': 'Padre (Historia de Usuario)',
+              'bug': 'Padre (Historia de Usuario)'
+            };
+
+            const normalize = (t) => (t || '')
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .replace(/[()\[\]"'"?.,:]/g, '')
+              .replace(/\s+/g, ' ')
+              .trim()
+              .toLowerCase();
+
+            // --- Parsear CSV (separado por tabs) ---
+            const raw = fs.readFileSync(CSV_PATH, 'utf8').replace(/\r/g, '');
+            const lines = raw.split('\n').filter(l => l.trim());
+            const headers = lines[0].split('\t').map(h => h.trim());
+            const idx = (name) => headers.findIndex(h => normalize(h) === normalize(name));
+            const iTitle = idx('Title');
+            const iURL = idx('URL');
+            const iNivel = idx('Nivel');
+            const iAssignees = idx('Assignees');
+            const iStatus = idx('Status');
+            const iFIni = idx('Fecha Prevista Inicio');
+            const iFFin = idx('Fecha Prevista Fin');
+            const iRIni = idx('Fecha Real Inicio');
+            const iRFin = idx('Fecha Real Fin');
+            const iParent = idx('Parent issue');
+
+            if (iNivel < 0 || iTitle < 0) {
+              throw new Error(`El CSV no tiene las columnas esperadas. Cabeceras: ${headers.join(' | ')}`);
+            }
+
+            const filas = [];
+            for (let r = 1; r < lines.length; r++) {
+              const c = lines[r].split('\t').map(x => (x || '').trim());
+              filas.push({
+                row: r + 1,
+                title: c[iTitle] || '',
+                url: c[iURL] || '',
+                nivel: c[iNivel] || '',
+                assignees: (c[iAssignees] || '').split(',').map(s => s.trim()).filter(Boolean),
+                status: c[iStatus] || '',
+                fecha_prev_ini: c[iFIni] || '',
+                fecha_prev_fin: c[iFFin] || '',
+                fecha_real_ini: c[iRIni] || '',
+                fecha_real_fin: c[iRFin] || '',
+                parent_url: c[iParent] || ''
+              });
+            }
+
+            // Nivel del padre según el CSV (URL del issue padre -> título de esa fila)
+            const urlATitulo = new Map();
+            for (const f of filas) if (f.url) urlATitulo.set(f.url.trim(), f.title);
+
+            // --- Verificar duplicados existentes (por título) ---
+            const existentes = [];
+            for await (const res of github.paginate.iterator(
+              github.rest.issues.listForRepo,
+              { owner, repo, state: 'all', per_page: 100 }
+            )) {
+              for (const issue of res.data) {
+                if (!issue.pull_request) existentes.push(issue);
+              }
+            }
+            const titulosExistentes = new Set(existentes.map(i => normalize(i.title).replace(/^\[\w\s*\]\s*/i, '')));
+
+            // --- Ordenar jerárquicamente (padres primero) ---
+            const filasOrdenadas = [...filas].sort((a, b) =>
+              (JERARQUIA_ORDEN[normalize(a.nivel)] ?? 9) - (JERARQUIA_ORDEN[normalize(b.nivel)] ?? 9)
+            );
+
+            // Mapa: título(normalizado) -> número real del issue creado (o existente)
+            const numeroPorTitulo = new Map();
+            for (const i of existentes) {
+              numeroPorTitulo.set(normalize(i.title).replace(/^\[\w\s*\]\s*/i, ''), i.number);
+            }
+
+            const creados = [];
+            const omitidos = [];
+            let errores = 0;
+
+            const fmtFecha = (s) => {
+              if (!s) return '';
+              const d = new Date(s);
+              if (isNaN(d)) return s;
+              return d.toISOString().slice(0, 10);
+            };
+
+            for (const f of filasOrdenadas) {
+              const nivelNorm = normalize(f.nivel);
+              const tituloLimpio = f.title.trim();
+
+              // 1) Saltar si ya existe con ese título (excepto si forzar=true)
+              const clave = normalize(tituloLimpio);
+              if (!FORZAR && (titulosExistentes.has(clave) || numeroPorTitulo.has(clave))) {
+                omitidos.push({ titulo: tituloLimpio, motivo: 'ya existe' });
+                continue;
+              }
+              if (!tituloLimpio || !nivelNorm) {
+                errores++;
+                console.log(`⚠️ Fila ${f.row}: falta título o nivel, se omite.`);
+                continue;
+              }
+
+              // 2) Título del padre (del CSV, para que el workflow lo valide)
+              let tituloPadre = '';
+              if (f.parent_url) {
+                const m = f.parent_url.match(/#(\d+)/);
+                tituloPadre = m ? (urlATitulo.get(f.parent_url.trim()) || '') : '';
+              }
+
+              // 3) Construir el body del formulario
+              let body = `### Nivel\n\n${f.nivel}\n\n`;
+
+              if (tituloPadre) {
+                const heading = HEADING_PADRE[nivelNorm];
+                if (heading) {
+                  // Buscar el número real del padre creado en esta corrida (o existente)
+                  const numPadre = numeroPorTitulo.get(normalize(tituloPadre)) || '';
+                  if (numPadre) {
+                    body += `### ${heading}\n\n#${numPadre} - ${tituloPadre}\n\n`;
+                  } else {
+                    body += `### ${heading}\n\n#? - ${tituloPadre} (padre se creara antes por orden jerarquico)\n\n`;
+                  }
+                }
+              }
+
+              body += `### Status\n\n${f.status || '_No response_'}\n\n`;
+              body += `### Fecha Previsto Inicio\n\n${fmtFecha(f.fecha_prev_ini) || '_No response_'}\n\n`;
+              body += `### Fecha Previsto Fin\n\n${fmtFecha(f.fecha_prev_fin) || '_No response_'}\n\n`;
+              body += `### Fecha Real Inicio\n\n${fmtFecha(f.fecha_real_ini) || '_No response_'}\n\n`;
+              body += `### Fecha Real Final\n\n${fmtFecha(f.fecha_real_fin) || '_No response_'}\n\n`;
+              body += `### Descripción\n\n(Importado desde CSV - Tabla Nivel 2)\n`;
+
+              // 4) Crear el issue
+              const payload = {
+                owner, repo,
+                title: `[${f.nivel}] ${tituloLimpio}`,
+                body
+              };
+              if (f.assignees.length) payload.assignees = f.assignees;
+
+              try {
+                const creado = await github.rest.issues.create(payload);
+                const num = creado.data.number;
+                numeroPorTitulo.set(normalize(tituloLimpio), num);
+                creados.push({ number: num, titulo: tituloLimpio, nivel: f.nivel, padreCSV: tituloPadre });
+                console.log(`✅ #${num} [${f.nivel}] ${tituloLimpio}${tituloPadre ? ' (padre: ' + tituloPadre + ')' : ''}`);
+              } catch (e) {
+                errores++;
+                console.log(`❌ Error creando "${tituloLimpio}": ${e.message}`);
+              }
+            }
+
+            console.log('\n--- Resumen ---');
+            console.log(`Archivo importado: ${CSV_PATH}`);
+            console.log(`Forzar creación de existentes: ${FORZAR}`);
+            console.log(`Creados: ${creados.length}`);
+            console.log(`Omitidos (ya existian): ${omitidos.length}`);
+            console.log(`Errores: ${errores}`);
+            if (creados.length) {
+              console.log('\nIssues creados:');
+              for (const c of creados) console.log(`  #${c.number} [${c.nivel}] ${c.titulo}`);
+            }
+            if (omitidos.length) {
+              console.log('\nOmitidos (ya existentes en el repo):');
+              for (const o of omitidos) console.log(`  - ${o.titulo} (${o.motivo})`);
+            }
