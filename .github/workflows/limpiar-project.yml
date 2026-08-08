@@ -95,11 +95,19 @@ jobs:
             // (puede haber uno vinculado al repo y otro de usuario - procesar ambos)
             let projects = proyectos.filter(p => p.title.includes('Proyecto Avances GIT'));
             if (projects.length === 0) {
-              if (proyectos.length === 0) throw new Error('No se encontró ningún Project v2 accesible.');
-              projects = [proyectos[0]];
+              if (proyectos.length === 0) {
+                console.log('⚠️ No se encontró ningún Project v2 accesible (esto no impide limpiar los issues del repo).');
+              } else {
+                projects = [proyectos[0]];
+              }
             }
-            console.log('Projects a limpiar:');
-            for (const p of projects) console.log(`  - ${p.title} (${p.id}) [${p.origen}]`);
+            if (projects.length > 0) {
+              console.log('Projects a limpiar:');
+              for (const p of projects) console.log(`  - ${p.title} (${p.id}) [${p.origen}]`);
+            } else {
+              console.log('⚠️ No hay Projects para limpiar; se procederá solo con los issues del repositorio.');
+              projects = [];
+            }
 
             // 3) Función para listar TODOS los items de un proyecto (paginación con cursor)
             const listarItems = async (projectId) => {
