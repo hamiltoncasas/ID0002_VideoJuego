@@ -39,9 +39,12 @@ jobs:
               'nivel': 'Nivel',
               'status': 'Status',
               'fecha previsto inicio': 'Fecha Previsto Inicio',
+              'fecha prevista inicio': 'Fecha Previsto Inicio',
               'fecha previsto fin': 'Fecha Previsto Fin',
+              'fecha prevista fin': 'Fecha Previsto Fin',
               'fecha real inicio': 'Fecha Real Inicio',
               'fecha real final': 'Fecha Real Final',
+              'fecha real fin': 'Fecha Real Final',
               'descripcion': 'Descripción'
             };
 
@@ -144,10 +147,14 @@ jobs:
           fi
           echo "Project v2 debe estar VINCULADO al repo o usar GH_PAT."
 
-      - name: Actualizar campo "Nivel" en Project v2
+      - name: Actualizar campos en Project v2 (Nivel + Fechas)
         uses: actions/github-script@v7
         env:
           NIVEL: ${{ env.NIVEL }}
+          FECHA_PREVISTO_INICIO: ${{ env.FECHA_PREVISTO_INICIO }}
+          FECHA_PREVISTO_FIN: ${{ env.FECHA_PREVISTO_FIN }}
+          FECHA_REAL_INICIO: ${{ env.FECHA_REAL_INICIO }}
+          FECHA_REAL_FINAL: ${{ env.FECHA_REAL_FINAL }}
           # Token usado para llamar a https://api.github.com/graphql directamente.
           # Si existe el secret GH_PAT, usa el PAT (acceso a Proyectos de usuario).
           # Si no, usa el GITHUB_TOKEN por defecto (solo Proyectos vinculados al repo).
@@ -181,6 +188,7 @@ jobs:
                 title
                 fields(first: 50) {
                   nodes {
+                    __typename
                     ... on ProjectV2FieldCommon {
                       id
                       name
@@ -291,22 +299,109 @@ jobs:
             console.log('Item agregado al Project con id:', itemId);
 
             const mutationUpdate = `
-              mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+              mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
                 updateProjectV2ItemFieldValue(input: {
                   projectId: $projectId,
                   itemId: $itemId,
                   fieldId: $fieldId,
-                  value: { singleSelectOptionId: $optionId }
+                  value: $value
                 }) {
                   clientMutationId
                 }
               }
             `;
-            await gql(mutationUpdate, {
-              projectId: project.id,
-              itemId: itemId,
-              fieldId: field.id,
-              optionId: option.id
-            });
 
+            // Función para actualizar un campo con un value complejo de ProjectV2FieldValue
+            const actualizarCampo = async (fieldId, value) => {
+              await gql(mutationUpdate, {
+                projectId: project.id,
+                itemId: itemId,
+                fieldId: fieldId,
+                value
+              });
+            };
+
+            // 1) Actualizar Nivel (single select)
+            await actualizarCampo(field.id, { singleSelectOptionId: option.id });
             console.log(`Campo "Nivel" actualizado a "${nivel}" en el Project.`);
+
+            // 2) Diagnóstico: mostrar todos los campos del Project encontrados
+            console.log('Campos del Project encontrados:');
+            for (const x of project.fields.nodes) {
+              console.log(`  - [${x.__typename || '?'}] "${x.name}" (${x.id})`);
+            }
+
+            // Función de coincidencia por nombre (normalizado flexible).
+            // "previsto" == "prevista" -> se normalizan a "previs"
+            const camposProj = project.fields.nodes;
+            const norm = (s) => (s || '')
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .replace(/previst[oa]/gi, 'previs')
+              .replace(/[^a-z0-9]/gi, '')
+              .toLowerCase();
+            const buscarCampo = (nombres) => {
+              for (const n of nombres) {
+                const buscado = norm(n);
+                // 1) coincidencia exacta normalizada
+                let encontrado = camposProj.find(x => norm(x.name) === buscado);
+                // 2) el nombre del Project contiene el nombre buscado (o viceversa)
+                if (!encontrado) encontrado = camposProj.find(x => norm(x.name).includes(buscado));
+                if (!encontrado) encontrado = camposProj.find(x => buscado.includes(norm(x.name)));
+                if (encontrado) return encontrado;
+              }
+              return null;
+            };
+            // Un campo es de fecha si su nombre contiene "fecha"/"date"
+            const esCampoFecha = (campo) => /fecha|date/i.test(campo.name || '');
+
+            // Función que actualiza con value correcto: fecha -> { date }, texto -> { text }
+            const actualizarConFallback = async (campo, val) => {
+              if (esCampoFecha(campo)) {
+                try {
+                  await actualizarCampo(campo.id, { date: val });
+                  return;
+                } catch (eF) {
+                  console.log(`  (date falló para "${campo.name}": ${eF.message.split('\n')[0]}) -> intento text`);
+                }
+              }
+              await actualizarCampo(campo.id, { text: val });
+            };
+
+            // 3) Actualizar los 4 campos de fecha (por nombre exacto o alternativas)
+            const fechas = [
+              {
+                nombres: ['Fecha Previsto Inicio', 'Fecha Prevista Inicio', 'Previsto Inicio', 'Prevista Inicio'],
+                valor: process.env.FECHA_PREVISTO_INICIO
+              },
+              {
+                nombres: ['Fecha Previsto Fin', 'Fecha Prevista Fin', 'Previsto Fin', 'Prevista Fin'],
+                valor: process.env.FECHA_PREVISTO_FIN
+              },
+              {
+                nombres: ['Fecha Real Inicio', 'Real Inicio'],
+                valor: process.env.FECHA_REAL_INICIO
+              },
+              {
+                nombres: ['Fecha Real Final', 'Fecha Real Fin', 'Real Final', 'Real Fin'],
+                valor: process.env.FECHA_REAL_FINAL
+              }
+            ];
+            for (const f of fechas) {
+              const val = (f.valor || '').trim();
+              if (!val || val === '_No response_') {
+                console.log(`Fechas (${f.nombres[0]}): sin valor, se omite.`);
+                continue;
+              }
+              const campo = buscarCampo(f.nombres);
+              if (!campo) {
+                console.log(`⚠️ No se encontró campo para "${f.nombres[0]}" en el Project. Campos: ${camposProj.map(x => `"${x.name}"`).join(', ')}`);
+                continue;
+              }
+              try {
+                await actualizarConFallback(campo, val);
+                console.log(`✅ Campo "${campo.name}" actualizado a "${val}" en el Project.`);
+              } catch (e) {
+                console.log(`❌ Error actualizando "${campo.name}": ${e.message}`);
+              }
+            }

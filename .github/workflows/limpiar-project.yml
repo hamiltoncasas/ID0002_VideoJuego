@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       confirmar:
-        description: 'Escribe SI para confirmar la eliminación de todos los items del Project'
+        description: 'Escribe SI para confirmar: limpiar items del Project y cerrar todos los issues del repo'
         required: true
         default: 'NO'
 
@@ -20,7 +20,7 @@ jobs:
       - name: Verificar confirmación
         run: |
           if [ "${{ inputs.confirmar }}" != "SI" ]; then
-            echo "Cancelado: escribe SI en el campo 'confirmar' para eliminar los items."
+            echo "Cancelado: escribe SI en el campo 'confirmar' para limpiar el Project y cerrar los issues."
             exit 1
           fi
 
@@ -134,16 +134,45 @@ jobs:
               return items;
             };
 
-            // 4) Recopilar items de todos los proyectos y números de issue
+            // 4) Recopilar items de todos los proyectos y números de issue.
+            // IMPORTANTE: el mismo proyecto puede aparecer [repo] y [usuario] con el
+            // MISMO id -> sus items están duplicados. Deduplicamos por itemId.
             const todosLosItems = [];      // { projectId, itemId, issueNumber }
             const numerosIssues = new Set();
+            const itemIdsVistos = new Set();
             for (const p of projects) {
               const items = await listarItems(p.id);
               console.log(`Project "${p.title}" (${p.origen}): ${items.length} items`);
               for (const it of items) {
+                if (itemIdsVistos.has(it.itemId)) continue; // ya procesado en otro project duplicado
+                itemIdsVistos.add(it.itemId);
                 todosLosItems.push({ projectId: p.id, ...it });
                 if (it.issueNumber) numerosIssues.add(it.issueNumber);
               }
+            }
+            console.log(`Items únicos tras deduplicar: ${todosLosItems.length}`);
+
+            // 4b) SIEMPRE listar TODOS los issues abiertos del repositorio
+            // (la limpieza del Project puede dar 0 si los issues están en otro lado,
+            //  pero los issues del repo deben eliminarse igualmente).
+            const issuesRepo = [];
+            for await (const res of github.paginate.iterator(
+              github.rest.issues.listForRepo,
+              { owner, repo, state: 'open', per_page: 100 }
+            )) {
+              for (const issue of res.data) {
+                if (issue.pull_request) continue;
+                issuesRepo.push(issue.number);
+                numerosIssues.add(issue.number);
+              }
+            }
+            console.log(`Issues abiertos en el repositorio: ${issuesRepo.length}`);
+
+            // 4c) Si hay issues en el repo pero no en el project, agregar mensaje
+            const projectIssueNumbers = new Set([...todosLosItems].map(i => i.issueNumber).filter(Boolean));
+            const sinProject = issuesRepo.filter(n => !projectIssueNumbers.has(n));
+            if (sinProject.length) {
+              console.log(`Nota: ${sinProject.length} issues no estaban en el Project y se eliminarán solo del repo: #${sinProject.join(', #')}`);
             }
 
             const totalItems = todosLosItems.length;
@@ -174,18 +203,82 @@ jobs:
               }
             }
 
-            // 6) Eliminar los issues del repositorio
+            // 6) CERRAR los issues del repositorio.
+            // IMPORTANTE (documentación de GitHub): borrar issues (DELETE) exige ser
+            // ADMININISTRADOR del repositorio; un colaborador con WRITE recibe 404.
+            // En cambio, CERRAR un issue (PATCH state=closed) solo requiere permiso
+            // de escritura, funciona con GH_PAT o GITHUB_TOKEN, y "limpia" la lista
+            // de issues abiertos. Por robustez, la limpieza cierra en vez de borrar.
+            const TOKEN_CERRAR = (process.env.GH_TOKEN_GQL || '').trim();
+            const CUAL_TOKEN = process.env.GH_TOKEN_GQL && TOKEN_CERRAR ? 'GH_PAT' : 'GITHUB_TOKEN';
+            console.log(`Cerrando issues con token: ${CUAL_TOKEN}`);
+
+            const cerrarIssue = async (num) => {
+              const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${num}`, {
+                method: 'PATCH',
+                headers: {
+                  'Authorization': `Bearer ${TOKEN_CERRAR}`,
+                  'Accept': 'application/vnd.github+json',
+                  'X-GitHub-Api-Version': '2022-11-28'
+                },
+                body: JSON.stringify({ state: 'closed' })
+              });
+              if (res.status !== 200) {
+                const body = await res.text().catch(() => '');
+                throw new Error(`HTTP ${res.status}: ${body.slice(0, 200)}`);
+              }
+            };
+
             let okIssues = 0, errIssues = 0;
             for (const num of numerosIssues) {
               try {
-                await github.rest.issues.delete({ owner, repo, issue_number: num });
+                await cerrarIssue(num);
                 okIssues++;
-                console.log(`🗑️ Issue #${num} eliminado del repositorio`);
+                console.log(`🗑️ Issue #${num} cerrado en el repositorio`);
               } catch (e) {
+                if (String(e.message).includes('404')) {
+                  console.log(`❌ Issue #${num}: 404 al cerrar. Usando ${CUAL_TOKEN} — el token no tiene acceso de escritura al repo.`);
+                  console.log(`   👉 El botón/gestion: verifica que ${CUAL_TOKEN} tenga scope "repo" y sea de una cuenta con permisos de escritura.`);
+                } else {
+                  console.log(`❌ Error cerrando issue #${num}: ${e.message}`);
+                }
                 errIssues++;
-                console.log(`❌ Error eliminando issue #${num}: ${e.message}`);
               }
             }
+
+            // 7) INTENTAR BORRAR definitivamente los issues cerrados (solo funciona
+            //    si el token es de un ADMININISTRADOR del repo; con WRITE dará 404).
+            //    Si falla, los issues quedaron cerrados (no borrados) sin romper el flujo.
+            console.log('\n--- Intentando borrado definitivo (requiere rol Admin) ---');
+            const borrarIssue = async (num) => {
+              const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${num}`, {
+                method: 'DELETE',
+                headers: {
+                  'Authorization': `Bearer ${TOKEN_CERRAR}`,
+                  'Accept': 'application/vnd.github+json',
+                  'X-GitHub-Api-Version': '2022-11-28'
+                }
+              });
+              if (res.status !== 204) {
+                const body = await res.text().catch(() => '');
+                throw new Error(`HTTP ${res.status}: ${body.slice(0, 200)}`);
+              }
+            };
+            let okBorrados = 0, errBorrados = 0;
+            for (const num of numerosIssues) {
+              try {
+                await borrarIssue(num);
+                okBorrados++;
+                console.log(`🗑️🗑️ Issue #${num} BORRADO definitivamente del repositorio`);
+              } catch (e) {
+                errBorrados++;
+                if (!String(e.message).includes('404')) {
+                  console.log(`⚠️ Issue #${num}: ${e.message}`);
+                }
+              }
+            }
+            console.log(`Borrados definitivamente: ${okBorrados}`);
+            console.log(`No borrados (quedaron cerrados; se requiere rol Admin): ${errBorrados}`);
 
             console.log('\n--- Resumen ---');
             console.log(`Items eliminados de Projects: ${okProject}`);
